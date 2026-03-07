@@ -1,0 +1,86 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+**/node_modules/
+
+# testing
+**/test-results/
+**/playwright-report/
+**/blob-report/
+**/playwright/.cache/
+
+# next.js
+**/.next/
+
+# production
+**/build/
+
+# node.js compile cache
+**/.node_cache/
+
+# misc
+**/.DS_Store
+**/*.pem
+
+# debug
+**/npm-debug.log*
+**/pnpm-debug.log*
+
+#env files
+**/.env
+**/.env*.local
+
+# vercel
+**/.vercel/
+
+# typescript
+**/*.tsbuildinfo
+**/next-env.d.ts
+**/dist/
+
+# Editor directories and files
+**/.idea
+**/.suo
+**/.ntvs*
+**/.njsproj
+**/.sln
+**/.sw?
+**/.vs
+**/.log
+**/.tmp
+
+# Meta files
+**/generated/
+**/tsconfig.resources.json
+**/server/content/
+
+# Local scripts
+**/.local-scripts/
+
+# rollup
+**/.rollup.cache/
+**/lib/
+
+# packages
+packages/docs/content
+packages/docs/public
+packages/docs/.docusaurus
+packages/docs/.cache-loader
+
+packages/flint/generated-tests/*
+!packages/flint/generated-tests/.gitkeep
+packages/flint/rules/dist/
+
+# Nx
+**/.nx
+.vercel
+
+coverage_out/
+coverage/
+
+# api docs
+public/openapi.json
+
+# database files
+local.db
+local.db-journal
