@@ -1,0 +1,31 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  // URL ТУТ НЕ МАЄ БУТИ
+}
+
+model User {
+  id              Int      @id @default(autoincrement())
+  email           String   @unique
+  password        String
+  organizedEvents Event[]  @relation("Organizer")
+  attendingEvents Event[]  @relation("Participants")
+}
+
+model Event {
+  id           Int      @id @default(autoincrement())
+  title        String
+  description  String
+  date         DateTime
+  location     String
+  capacity     Int?
+  visibility   String   @default("public")
+  
+  organizerId  Int
+  organizer    User     @relation("Organizer", fields: [organizerId], references: [id])
+  
+  participants User[]   @relation("Participants")
+}
