@@ -4,28 +4,31 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  // URL ТУТ НЕ МАЄ БУТИ
 }
 
 model User {
-  id              Int      @id @default(autoincrement())
-  email           String   @unique
-  password        String
-  organizedEvents Event[]  @relation("Organizer")
-  attendingEvents Event[]  @relation("Participants")
+  id               String   @id @default(cuid())
+  email            String   @unique
+  password         String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  organizedEvents  Event[]  @relation("Organizer")
+  attendingEvents  Event[]  @relation("Participants")
 }
 
 model Event {
-  id           Int      @id @default(autoincrement())
+  id           String   @id @default(cuid())
   title        String
-  description  String
+  description  String?
   date         DateTime
   location     String
-  capacity     Int?
-  visibility   String   @default("public")
-  
-  organizerId  Int
+
+  organizerId  String
   organizer    User     @relation("Organizer", fields: [organizerId], references: [id])
   
   participants User[]   @relation("Participants")
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
