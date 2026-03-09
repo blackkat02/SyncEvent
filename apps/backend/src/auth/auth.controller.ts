@@ -1,20 +1,37 @@
-import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
+import {
+  Controller,
+  Post,
+  Body,
+  UsePipes,
+  Get,
+  UseGuards,
+  Req,
+} from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
-import { PrismaModule } from '../prisma/prisma.module';
+import { registerSchema } from './dto/register.dto';
+import type { RegisterDto } from './dto/register.dto';
+import { YupValidationPipe } from '../common/pipes/yup-validation.pipe';
 
-@Module({
-  imports: [
-    PrismaModule,
-    PassportModule,
-    JwtModule.register({
-      secret: process.env.JWT_SECRET || 'super_secret_key', // В ідеалі через ConfigService
-      signOptions: { expiresIn: '1h' },
-    }),
-  ],
-  controllers: [AuthController],
-  providers: [AuthService],
-})
-export class AuthModule {}
+@Controller('auth')
+export class AuthController {
+  constructor(private readonly authService: AuthService) {}
+
+  @Post('register')
+  @UsePipes(new YupValidationPipe(registerSchema))
+  async register(@Body() registerDto: RegisterDto) {
+    return this.authService.register(registerDto);
+  }
+
+  @Post('login')
+  @UsePipes(new YupValidationPipe(registerSchema))
+  async login(@Body() loginDto: RegisterDto) {
+    return this.authService.login(loginDto);
+  }
+
+  @Get('profile')
+  @UseGuards(AuthGuard('jwt'))
+  getProfile(@Req() req: { user: { id: string; email: string } }) {
+    return req.user;
+  }
+}
