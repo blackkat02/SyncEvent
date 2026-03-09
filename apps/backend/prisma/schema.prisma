@@ -7,28 +7,28 @@ datasource db {
 }
 
 model User {
-  id               String   @id @default(cuid())
-  email            String   @unique
-  password         String
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id            String   @id @default(cuid())
+  email         String   @unique
+  password      String
+  firstName     String?  
+  lastName      String?  
+  avatarUrl     String?
 
-  organizedEvents  Event[]  @relation("Organizer")
-  attendingEvents  Event[]  @relation("Participants")
+  refreshToken  String?  @db.Text 
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  events        Event[]  
 }
 
 model Event {
-  id           String   @id @default(cuid())
-  title        String
-  description  String?
-  date         DateTime
-  location     String
-
-  organizerId  String
-  organizer    User     @relation("Organizer", fields: [organizerId], references: [id])
-  
-  participants User[]   @relation("Participants")
-
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  date        DateTime
+  location    String?
+  authorId    String
+  author      User     @relation(fields: [authorId], references: [id])
+  createdAt   DateTime @default(now())
 }
