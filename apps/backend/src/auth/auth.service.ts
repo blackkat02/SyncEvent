@@ -23,7 +23,6 @@ export class AuthService {
         email: dto.email,
         password: hashedPassword,
       },
-      // Вибираємо, які поля повернути (пароль не повертаємо!)
       select: {
         id: true,
         email: true,
