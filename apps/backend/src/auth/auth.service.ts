@@ -102,7 +102,7 @@ export class AuthService {
       throw new UnauthorizedException('Access Denied');
     }
 
-    const hashedRT = user.refreshToken as string;
+    const hashedRT = user.refreshToken;
     const isTokenMatch = await bcrypt.compare(refreshToken, hashedRT);
 
     if (!isTokenMatch) {

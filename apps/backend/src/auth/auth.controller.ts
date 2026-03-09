@@ -17,7 +17,6 @@ import { YupValidationPipe } from '../common/pipes/yup-validation.pipe';
 
 @Controller('auth')
 export class AuthController {
-  // jwtService: any;
   constructor(
     private readonly authService: AuthService,
     private readonly jwtService: JwtService,
