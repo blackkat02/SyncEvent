@@ -27,12 +27,12 @@ export class AuthService {
         },
       });
 
-      const payload = { email: user.email, sub: user.id };
-      const token = this.jwtService.sign(payload);
+      const tokens = await this.getTokens(user.id, user.email);
+      await this.updateRefreshToken(user.id, tokens.refreshToken);
 
       return {
         user: { id: user.id, email: user.email },
-        access_token: token,
+        ...tokens,
       };
     } catch (error: unknown) {
       if (
@@ -41,7 +41,10 @@ export class AuthService {
       ) {
         throw new ConflictException('User with this email already exists');
       }
-      throw error;
+      // Перетворюємо помилку на рядок або кидаємо як є, щоб уникнути 'any'
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(errorMessage);
     }
   }
 
@@ -60,11 +63,63 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const payload = { email: user.email, sub: user.id };
+    const tokens = await this.getTokens(user.id, user.email);
+    await this.updateRefreshToken(user.id, tokens.refreshToken);
 
     return {
       user: { id: user.id, email: user.email },
-      access_token: this.jwtService.sign(payload),
+      ...tokens,
     };
+  }
+
+  private async getTokens(userId: string, email: string) {
+    const [accessToken, refreshToken] = await Promise.all([
+      this.jwtService.signAsync(
+        { sub: userId, email },
+        {
+          expiresIn: '15m',
+          secret: process.env.JWT_SECRET,
+        },
+      ),
+      this.jwtService.signAsync(
+        { sub: userId, email },
+        {
+          expiresIn: '7d',
+          secret: process.env.JWT_REFRESH_SECRET || 'refresh_secret',
+        },
+      ),
+    ]);
+
+    return { accessToken, refreshToken };
+  }
+
+  async refreshTokens(userId: string, refreshToken: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || !('refreshToken' in user) || !user.refreshToken) {
+      throw new UnauthorizedException('Access Denied');
+    }
+
+    const hashedRT = user.refreshToken as string;
+    const isTokenMatch = await bcrypt.compare(refreshToken, hashedRT);
+
+    if (!isTokenMatch) {
+      throw new UnauthorizedException('Access Denied');
+    }
+
+    const tokens = await this.getTokens(user.id, user.email);
+    await this.updateRefreshToken(user.id, tokens.refreshToken);
+
+    return tokens;
+  }
+
+  async updateRefreshToken(userId: string, refreshToken: string) {
+    const hashedToken = await bcrypt.hash(refreshToken, 10);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { refreshToken: hashedToken },
+    });
   }
 }
