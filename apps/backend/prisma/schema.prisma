@@ -6,29 +6,45 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Visibility {
+  PUBLIC
+  PRIVATE
+}
+
 model User {
-  id            String   @id @default(cuid())
-  email         String   @unique
-  password      String
-  firstName     String?  
-  lastName      String?  
-  avatarUrl     String?
+  id           String   @id @default(cuid())
+  email        String   @unique
+  password     String
 
-  refreshToken  String?  @db.Text
+  displayName  String?  
+  avatarUrl    String?
+
+  refreshToken String?  @db.Text
   
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  events        Event[]  
+  createdEvents Event[] @relation("CreatedEvents")
+  joinedEvents  Event[] @relation("JoinedEvents") 
 }
 
 model Event {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  date        DateTime
-  location    String?
-  authorId    String
-  author      User     @relation(fields: [authorId], references: [id])
-  createdAt   DateTime @default(now())
+  id           String     @id @default(cuid())
+  title        String
+  description  String?
+  date         DateTime
+  location     String
+  capacity     Int?
+
+  visibility   Visibility @default(PUBLIC)
+  
+  authorId     String
+  author       User       @relation("CreatedEvents", fields: [authorId], references: [id])
+  participants User[]     @relation("JoinedEvents")
+
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([authorId]) 
+  @@index([visibility])
 }

@@ -1,0 +1,7 @@
+{
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "prettier.bracketSpacing": true,
+  "eslint.workingDirectories": ["./apps/backend", "./apps/frontend"],
+  "eslint.validate": ["typescript", "typescriptreact"]
+}
