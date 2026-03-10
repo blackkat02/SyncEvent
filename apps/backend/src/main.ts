@@ -13,7 +13,7 @@ async function bootstrap() {
     .setTitle('SyncEvent API')
     .setDescription('The SyncEvent API description')
     .setVersion('1.0')
-    .addBearerAuth() // Додає підтримку JWT в Swagger UI
+    .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
