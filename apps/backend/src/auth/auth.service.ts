@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import {
   ConflictException,
   Injectable,
@@ -9,14 +10,20 @@ import * as bcrypt from 'bcrypt';
 import { RegisterDto } from './dto/register.dto';
 import { Prisma } from '@prisma/client';
 
+interface AuthResponse {
+  user: { id: string; email: string };
+  accessToken: string;
+  refreshToken: string;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
-  ) {}
+  ) { }
 
-  async register(dto: RegisterDto) {
+  async register(dto: RegisterDto): Promise<AuthResponse> {
     try {
       const hashedPassword = await bcrypt.hash(dto.password, 10);
 
@@ -41,14 +48,11 @@ export class AuthService {
       ) {
         throw new ConflictException('User with this email already exists');
       }
-      // Перетворюємо помилку на рядок або кидаємо як є, щоб уникнути 'any'
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(errorMessage);
+      throw error;
     }
   }
 
-  async login(dto: RegisterDto) {
+  async login(dto: RegisterDto): Promise<AuthResponse> {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
@@ -58,7 +62,6 @@ export class AuthService {
     }
 
     const isPasswordValid = await bcrypt.compare(dto.password, user.password);
-
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }

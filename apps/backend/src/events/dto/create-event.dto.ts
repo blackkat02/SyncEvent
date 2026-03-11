@@ -35,7 +35,7 @@ export class CreateEventDto implements yup.InferType<typeof createEventSchema> {
   @ApiProperty({ example: 'Description...', required: false })
   description?: string;
 
-  @ApiProperty({ example: '2026-11-15T09:00:00Z' })
+  @ApiProperty({ example: '2026-11-15T09:00:00Z', type: String }) // Вказав тип для Swagger
   date: any;
 
   @ApiProperty({ example: 'Kyiv, Ukraine' })
@@ -46,6 +46,7 @@ export class CreateEventDto implements yup.InferType<typeof createEventSchema> {
 
   @ApiProperty({
     enum: Visibility,
+    enumName: 'Visibility', // Допомагає Swagger правильно відобразити Enum
     default: Visibility.PUBLIC,
   })
   visibility: Visibility;

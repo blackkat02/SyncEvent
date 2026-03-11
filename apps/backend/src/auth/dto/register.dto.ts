@@ -1,3 +1,4 @@
+import { ApiProperty } from '@nestjs/swagger';
 import * as yup from 'yup';
 
 export const registerSchema = yup.object({
@@ -8,4 +9,13 @@ export const registerSchema = yup.object({
     .required('Password is required'),
 });
 
-export type RegisterDto = yup.InferType<typeof registerSchema>;
+export class RegisterDto implements yup.InferType<typeof registerSchema> {
+  @ApiProperty({ example: 'user@example.com', description: 'User email' })
+  email: string;
+
+  @ApiProperty({
+    example: 'password123',
+    description: 'User password (min 6 chars)',
+  })
+  password: string;
+}
