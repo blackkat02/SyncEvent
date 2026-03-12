@@ -8,10 +8,34 @@ services:
       POSTGRES_DB: syncevent_db
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d syncevent_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
       - sync-network
+
+  backend-init:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    container_name: sync-event-init
+    tty: true
+    environment:
+      DATABASE_URL: "postgresql://user:password@db:5432/syncevent_db?schema=public"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - sync-network
+    working_dir: /app/apps/backend
+    # Прямий запуск через ts-node, щоб підхопити твій новий seed.ts з адаптером
+    command: >
+      sh -c "npx prisma migrate deploy && 
+             DATABASE_URL=postgresql://user:password@db:5432/syncevent_db?schema=public npx ts-node prisma/seed.ts"
 
   backend:
     build:
@@ -25,26 +49,19 @@ services:
     environment:
       DATABASE_URL: "postgresql://user:password@db:5432/syncevent_db?schema=public"
       PORT: 3000
+      JWT_SECRET: "dev_access"
+      JWT_REFRESH_SECRET: "dev_refresh"
+      JWT_ACCESS_EXPIRES_IN: "15m"
+      JWT_REFRESH_EXPIRES_IN: "7d"
+      NODE_ENV: "development"
     ports:
       - "3000:3000"
     depends_on:
-      - db
+      backend-init:
+        condition: service_completed_successfully
     networks:
       - sync-network
     command: pnpm --filter backend start:dev
-
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: sync-event-pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-    ports:
-      - "5050:80"
-    depends_on:
-      - db
-    networks:
-      - sync-network
 
 networks:
   sync-network:
