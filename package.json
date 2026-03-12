@@ -11,5 +11,11 @@
     "db:generate": "pnpm --filter backend exec prisma generate",
     "db:studio": "pnpm --filter backend exec prisma studio"
   },
-  "packageManager": "pnpm@10.30.2"
+  "packageManager": "pnpm@10.30.2",
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "yup": "^1.7.1"
+  }
 }

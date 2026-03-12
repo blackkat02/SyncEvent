@@ -61,7 +61,7 @@ async function main() {
       visibility: Visibility.PUBLIC,
       authorId: user1.id,
       participants: {
-        connect: [{ id: user2.id }, { id: user3.id }],
+        connect: [{ id: user1.id }, { id: user2.id }],
       },
     },
   });

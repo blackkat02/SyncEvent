@@ -9,12 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { RegisterDto } from './dto/register.dto';
 import { Prisma } from '@prisma/client';
-
-interface AuthResponse {
-  user: { id: string; email: string };
-  accessToken: string;
-  refreshToken: string;
-}
+import { AuthResponse } from '@syncevent/shared';
 
 @Injectable()
 export class AuthService {
