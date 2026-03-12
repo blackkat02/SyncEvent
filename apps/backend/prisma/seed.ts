@@ -1,7 +1,14 @@
 import { PrismaClient, Visibility } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
 import * as bcrypt from 'bcrypt';
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({
+  connectionString: process.env.DATABASE_URL!,
+});
+
+const prisma = new PrismaClient({
+  adapter,
+});
 
 async function main() {
   const password = await bcrypt.hash('password123', 10);
@@ -9,7 +16,11 @@ async function main() {
   const user1 = await prisma.user.upsert({
     where: { email: 'eduard@example.com' },
     update: {},
-    create: { email: 'eduard@example.com', password, displayName: 'eduard' },
+    create: {
+      email: 'eduard@example.com',
+      password,
+      displayName: 'eduard',
+    },
   });
 
   const user2 = await prisma.user.upsert({
@@ -25,13 +36,19 @@ async function main() {
   const user3 = await prisma.user.upsert({
     where: { email: 'admin@example.com' },
     update: {},
-    create: { email: 'admin@example.com', password, displayName: 'Admin User' },
+    create: {
+      email: 'admin@example.com',
+      password,
+      displayName: 'Admin User',
+    },
   });
 
   await prisma.event.upsert({
     where: { id: 'event-sold-out' },
     update: {
-      participants: { set: [{ id: user2.id }, { id: user3.id }] },
+      participants: {
+        set: [{ id: user2.id }, { id: user3.id }],
+      },
     },
     create: {
       id: 'event-sold-out',
@@ -40,7 +57,7 @@ async function main() {
         'This event is already full to test UI labels and capacity logic',
       date: new Date('2026-12-01T10:00:00Z'),
       location: 'Small Meeting Room',
-      capacity: 2, // Дуже мала місткість [cite: 43]
+      capacity: 2,
       visibility: Visibility.PUBLIC,
       authorId: user1.id,
       participants: {
@@ -82,15 +99,10 @@ async function main() {
       authorId: user3.id,
     },
   });
-
-  console.log(
-    'Seed success: 3 users created. "Sold Out Workshop" is at 100% capacity.',
-  );
 }
 
 main()
-  .catch((e) => {
-    console.error(e);
+  .catch(() => {
     process.exit(1);
   })
   .finally(async () => {
