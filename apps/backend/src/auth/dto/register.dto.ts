@@ -1,21 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import * as yup from 'yup';
+import { RegisterInput } from '@syncevent/shared';
 
-export const registerSchema = yup.object({
-  email: yup.string().email('Invalid email').required('Email is required'),
-  password: yup
-    .string()
-    .min(6, 'Password too short')
-    .required('Password is required'),
-});
-
-export class RegisterDto implements yup.InferType<typeof registerSchema> {
-  @ApiProperty({ example: 'user@example.com', description: 'User email' })
+export class RegisterDto implements RegisterInput {
+  @ApiProperty({ example: 'user@example.com' })
   email: string;
 
-  @ApiProperty({
-    example: 'password123',
-    description: 'User password (min 6 chars)',
-  })
+  @ApiProperty({ example: 'password123' })
   password: string;
 }

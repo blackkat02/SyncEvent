@@ -1,12 +1,26 @@
-import { PartialType } from '@nestjs/swagger';
+import { PartialType, ApiPropertyOptional } from '@nestjs/swagger';
 import { CreateEventDto } from './create-event.dto';
-import { Visibility } from '@prisma/client';
+import { UpdateEventInput, EventVisibility } from '@syncevent/shared';
 
-export class UpdateEventDto extends PartialType(CreateEventDto) {
+export class UpdateEventDto
+  extends PartialType(CreateEventDto)
+  // eslint-disable-next-line prettier/prettier
+  implements UpdateEventInput {
+  @ApiPropertyOptional({ example: 'My Updated Event' })
   title?: string;
+
+  @ApiPropertyOptional({ example: 'Updated description of the event' })
   description?: string;
-  date?: string | Date;
-  location?: string;
+
+  @ApiPropertyOptional({ example: '2026-10-10T15:00:00Z', type: Date })
+  date?: Date;
+
+  @ApiPropertyOptional({ example: 50 })
   capacity?: number;
-  visibility?: Visibility;
+
+  @ApiPropertyOptional({
+    enum: EventVisibility,
+    example: EventVisibility.PUBLIC,
+  })
+  visibility?: EventVisibility;
 }

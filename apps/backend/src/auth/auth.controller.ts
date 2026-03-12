@@ -17,20 +17,14 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { registerSchema, RegisterDto } from './dto/register.dto';
+import {
+  registerSchema,
+  AuthResponse,
+  type UserProfile,
+  type RegisterInput,
+} from '@syncevent/shared';
 import { YupValidationPipe } from '../common/pipes/yup-validation.pipe';
 import { GetUser } from '../common/decorators/get-user.decorator';
-
-interface UserProfile {
-  id: string;
-  email: string;
-}
-
-export interface AuthResponse {
-  user: { id: string; email: string };
-  accessToken: string;
-  refreshToken: string;
-}
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -43,8 +37,8 @@ export class AuthController {
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
   @ApiResponse({ status: 201, description: 'User successfully registered.' })
-  @UsePipes(new YupValidationPipe(registerSchema))
-  async register(@Body() registerDto: RegisterDto): Promise<AuthResponse> {
+  @UsePipes(new YupValidationPipe(registerSchema)) // Валідація через Yup
+  async register(@Body() registerDto: RegisterInput): Promise<AuthResponse> {
     return await this.authService.register(registerDto);
   }
 
@@ -55,7 +49,7 @@ export class AuthController {
     description: 'Return access and refresh tokens.',
   })
   @UsePipes(new YupValidationPipe(registerSchema))
-  async login(@Body() loginDto: RegisterDto): Promise<AuthResponse> {
+  async login(@Body() loginDto: RegisterInput): Promise<AuthResponse> {
     return await this.authService.login(loginDto);
   }
 

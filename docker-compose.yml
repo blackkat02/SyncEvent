@@ -18,6 +18,19 @@ services:
     networks:
       - sync-network
 
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: sync-event-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - db
+    networks:
+      - sync-network
+
   backend-init:
     build:
       context: .
@@ -32,7 +45,6 @@ services:
     networks:
       - sync-network
     working_dir: /app/apps/backend
-    # Прямий запуск через ts-node, щоб підхопити твій новий seed.ts з адаптером
     command: >
       sh -c "npx prisma migrate deploy && 
              DATABASE_URL=postgresql://user:password@db:5432/syncevent_db?schema=public npx ts-node prisma/seed.ts"
@@ -61,7 +73,8 @@ services:
         condition: service_completed_successfully
     networks:
       - sync-network
-    command: pnpm --filter backend start:dev
+    # command: pnpm --filter backend start:dev
+    command: node dist/apps/backend/src/main.js
 
 networks:
   sync-network:

@@ -15,31 +15,35 @@ export class EventsService {
   constructor(private readonly prisma: PrismaService) { }
 
   async create(dto: CreateEventDto, userId: string) {
-    const eventDate = new Date(dto.date as string);
+    const eventDate = new Date(dto.date as unknown as string);
 
-    if (isNaN(eventDate.getTime()) || eventDate < new Date()) {
-      throw new BadRequestException('Invalid date or date is in the past');
+    const tomorrow = new Date();
+    tomorrow.setHours(0, 0, 0, 0);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    if (isNaN(eventDate.getTime()) || eventDate < tomorrow) {
+      throw new BadRequestException('Event date must be at least tomorrow');
     }
 
     return await this.prisma.event.create({
       data: {
-        title: dto.title,
-        description: dto.description,
-        location: dto.location,
-        capacity: dto.capacity,
-        visibility: dto.visibility,
+        ...dto,
         date: eventDate,
         authorId: userId,
+        participants: {
+          connect: { id: userId },
+        },
       },
       include: {
-        author: { select: { email: true } },
+        author: { select: { email: true, id: true } },
+        _count: { select: { participants: true } },
       },
     });
   }
 
   async findAll(currentUserId?: string) {
     const events = await this.prisma.event.findMany({
-      where: { visibility: Visibility.PUBLIC },
+      where: currentUserId ? {} : { visibility: Visibility.PUBLIC },
       include: {
         author: { select: { id: true, email: true } },
         _count: { select: { participants: true } },
