@@ -73,8 +73,25 @@ services:
         condition: service_completed_successfully
     networks:
       - sync-network
-    # command: pnpm --filter backend start:dev
     command: node dist/apps/backend/src/main.js
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    container_name: sync-event-frontend
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/apps/frontend/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:3000/api
+    depends_on:
+      - backend
+    networks:
+      - sync-network
 
 networks:
   sync-network:
