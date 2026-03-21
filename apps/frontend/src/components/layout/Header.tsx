@@ -5,7 +5,7 @@ export const Header = () => {
     <header className="flex items-center justify-between px-8 py-4 bg-white border-b border-gray-100 sticky top-0 z-10">
       <div className="flex items-center gap-10">
         <h1 className="text-xl font-bold text-blue-600 tracking-tighter">
-          RADENCY
+          SyncEvent
         </h1>
         <nav className="hidden md:flex gap-6 text-sm font-medium text-gray-500">
           <a href="/" className="hover:text-blue-600">

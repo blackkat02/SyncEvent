@@ -9,7 +9,7 @@ export const Header = () => {
             to="/"
             className="text-xl font-bold text-blue-600 tracking-tight"
           >
-            RADENCY
+            SyncEvent
           </Link>
           <nav className="hidden md:flex items-center gap-6">
             <Link
