@@ -17,8 +17,7 @@ export const EventCard = ({
   participants,
   capacity,
 }: EventCardProps) => {
-  const isFull = capacity && participants >= capacity;
-
+  const isFull = !!capacity && participants >= capacity;
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
       <div className="flex justify-between items-start mb-4">
@@ -59,7 +58,7 @@ export const EventCard = ({
             : "bg-blue-600 text-white hover:bg-blue-700"
         }`}
       >
-        {isFull ? "Full" : "Join Event"} [cite: 24, 26, 148]
+        {isFull ? "Full" : "Join Event"}
       </button>
     </div>
   );
