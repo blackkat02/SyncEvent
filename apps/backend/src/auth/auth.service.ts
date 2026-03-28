@@ -10,6 +10,7 @@ import * as bcrypt from 'bcrypt';
 import { RegisterDto } from './dto/register.dto';
 import { Prisma } from '@prisma/client';
 import { AuthResponse } from '@syncevent/shared';
+import { env } from '../../env';
 
 @Injectable()
 export class AuthService {
@@ -76,14 +77,14 @@ export class AuthService {
         { sub: userId, email },
         {
           expiresIn: '15m',
-          secret: process.env.JWT_SECRET,
+          secret: env.JWT_SECRET,
         },
       ),
       this.jwtService.signAsync(
         { sub: userId, email },
         {
           expiresIn: '7d',
-          secret: process.env.JWT_REFRESH_SECRET || 'refresh_secret',
+          secret: env.JWT_REFRESH_SECRET,
         },
       ),
     ]);
