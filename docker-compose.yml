@@ -61,11 +61,12 @@ services:
     environment:
       DATABASE_URL: "postgresql://user:password@db:5432/syncevent_db?schema=public"
       PORT: 3000
-      JWT_SECRET: "dev_access"
-      JWT_REFRESH_SECRET: "dev_refresh"
+      JWT_SECRET: "docker_dev_access_key_change_in_production"
+      JWT_REFRESH_SECRET: "docker_dev_refresh_key_change_in_production"
       JWT_ACCESS_EXPIRES_IN: "15m"
       JWT_REFRESH_EXPIRES_IN: "7d"
       NODE_ENV: "development"
+      CORS_ORIGINS: "http://frontend:5173"
     ports:
       - "3000:3000"
     depends_on:
@@ -87,7 +88,7 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_URL=http://localhost:3000/api
+      - VITE_API_URL=http://backend:3000/api
     depends_on:
       - backend
     networks:
