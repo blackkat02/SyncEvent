@@ -1,13 +1,24 @@
-import axios from 'axios';
+import axios, { type AxiosResponse } from 'axios';
+import type { ApiResponse } from '@syncevent/shared';
 
-export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+const apiClient = axios.create({
+  baseURL: import.meta.env.VITE_API_URL,
 });
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('accessToken');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+apiClient.interceptors.response.use(
+  (response: AxiosResponse<ApiResponse<any>>) => {
+    const serverResponse = response.data;
+
+    if (serverResponse.success) {
+      return serverResponse.data;
+    }
+
+    return Promise.reject(new Error(serverResponse.message || 'Server Error'));
+  },
+  (error) => {
+    const message = error.response?.data?.message || error.message;
+    return Promise.reject(new Error(message));
   }
-  return config;
-});
+);
+
+export default apiClient;
