@@ -1,23 +1,44 @@
+// {
+//   "compilerOptions": {
+//     "target": "ES2022",
+//     "module": "ESNext",
+//     "moduleResolution": "Node",
+//     "lib": ["ESNext", "DOM"],
+
+//     "strict": true,
+
+//     "declaration": true,
+//     "declarationMap": true,
+//     "composite": true,
+
+//     "rootDir": "src",
+//     "outDir": "dist",
+
+//     "baseUrl": ".",
+
+//     "esModuleInterop": true,
+//     "skipLibCheck": true
+//   },
+//   "include": ["src"]
+// }
+
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "ESNext",
-    "moduleResolution": "Node",
+    "module": "CommonJS", 
+    "moduleResolution": "node",
     "lib": ["ESNext", "DOM"],
-
     "strict": true,
-
     "declaration": true,
     "declarationMap": true,
+    "sourceMap": true,
     "composite": true,
-
     "rootDir": "src",
     "outDir": "dist",
-
-    "baseUrl": ".",
-
     "esModuleInterop": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
   },
-  "include": ["src"]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

@@ -48,3 +48,6 @@ logs
 # --- Temporary Files ---
 .temp/
 .tmp/
+
+# --- Agent Reports ---
+/report/
