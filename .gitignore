@@ -49,5 +49,5 @@ logs
 .temp/
 .tmp/
 
-# --- Agent Reports ---
+# --- Reports ---
 /report/
