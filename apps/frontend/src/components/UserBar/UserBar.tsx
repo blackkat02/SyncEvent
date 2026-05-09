@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import apiClient from "../../api/client";
-import { UserProfile } from "@syncevent/shared";
+import { apiGet } from "../../api/client";
+import type { UserProfile } from "@syncevent/shared";
 
 const UserBar: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -9,7 +9,7 @@ const UserBar: React.FC = () => {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const userData = await apiClient.get<UserProfile>("/auth/profile");
+        const userData = await apiGet<UserProfile>("/auth/profile");
         setUser(userData);
       } catch (error) {
         // У майбутньому тут буде редирект на логін
