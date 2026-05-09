@@ -11,7 +11,6 @@ RUN pnpm install --frozen-lockfile
 COPY packages/shared ./packages/shared
 COPY apps/backend ./apps/backend
 
-# ← додай цей рядок
 RUN pnpm --filter @syncevent/shared build
 
 WORKDIR /app/apps/backend

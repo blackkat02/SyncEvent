@@ -13,7 +13,7 @@ export const CreateEventPage = () => {
           </label>
           <input
             className="w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
-            placeholder="e.g., Tech Conference 2025 [cite: 236]"
+            placeholder="e.g., Tech Conference 2025"
           />
         </div>
 
@@ -23,9 +23,7 @@ export const CreateEventPage = () => {
             <input type="date" className="w-full p-3 border rounded-xl" />
           </div>
           <div className="space-y-2">
-            <label className="text-sm font-bold text-gray-700">
-              Time * [cite: 241]
-            </label>
+            <label className="text-sm font-bold text-gray-700">Time *</label>
             <input type="time" className="w-full p-3 border rounded-xl" />
           </div>
         </div>

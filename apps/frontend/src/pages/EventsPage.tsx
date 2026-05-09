@@ -5,10 +5,10 @@ export const EventsPage = () => {
     <div className="space-y-8">
       <section className="text-center md:text-left py-4">
         <h2 className="text-3xl font-extrabold text-gray-900 mb-2">
-          Discover Events [cite: 122]
+          Discover Events
         </h2>
         <p className="text-gray-500 text-lg">
-          Find and join exciting events happening around you [cite: 123]
+          Find and join exciting events happening around you
         </p>
       </section>
 
