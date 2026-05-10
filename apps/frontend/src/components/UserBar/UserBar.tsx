@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { apiGet } from "../../api/client";
 import type { UserProfile } from "@syncevent/shared";
 
-const UserBar: React.FC = () => {
+export const UserBar: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -61,4 +61,4 @@ const UserBar: React.FC = () => {
   );
 };
 
-export default UserBar;
+// export default UserBar;

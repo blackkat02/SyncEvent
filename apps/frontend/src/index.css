@@ -1,1 +1,105 @@
 @import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-family: "Inter Tight", sans-serif;
+    --second-family: "SF Pro Display", sans-serif;
+    --third-family: "Manrope", sans-serif;
+    --font3: "Plus Jakarta Sans", sans-serif;
+    --font4: "Bebas Neue", sans-serif;
+    --font5: "Lato", sans-serif;
+    --orange: #f90;
+    --black: #070707;
+    --purple: #34359b;
+    --purple-2: #9dbeff;
+    --dark-green: #105447;
+    --accent: #1a5a4c;
+    --white: #fff;
+    --abu-stroke: #ebebeb;
+    --abu-bg: #f5f5f5;
+    --text: #575757;
+    --hijau-bg: rgba(26, 90, 76, 0.12);
+    --light-green: #a8ff36;
+    --color-bg-orange: #f2f0e7;
+    --purple-bg: #ebecfa;
+    --purple: #7f81c8;
+    --pink: #be3a3a;
+    --pink-bg: #fceeed;
+    --dark-stroke: #464646;
+    --linearr: #fff;
+    --neon-green: #dffa7a;
+    --bluee: #80abfe;
+    --yellow: #ffcd51;
+    --green-dental: #178d71;
+    --green-dental-muda: #e2f6f1;
+    --puple-: #873ae3;
+    --orange: #f57c3c;
+    --pinkeuu: #ef4476;
+    --blue: #1267f8;
+    --blue-fix: #0020fd;
+    --color: #ffc62b;
+    --red: #c31e26;
+    --yelloww: #ffc62b;
+    --yellow-2: #f5aa21;
+    --renov-bg: #f5f3f3;
+  }
+
+  *,
+  *::before,
+  *::after {
+    padding: 0;
+    margin: 0;
+    border: none;
+    box-sizing: border-box;
+  }
+
+  *::before,
+  *::after {
+    display: inline-block;
+  }
+
+  body,
+  html {
+    height: 100%;
+  }
+
+  body {
+    line-height: 1;
+  }
+
+  a {
+    text-decoration: none;
+    color: inherit;
+    display: inline-block;
+  }
+
+  img {
+    display: block;
+    max-width: 100%;
+  }
+
+  ul,
+  ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    list-style: none;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: inherit;
+    margin: 0;
+  }
+
+  q {
+    quotes: none;
+  }
+}

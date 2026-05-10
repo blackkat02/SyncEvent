@@ -1,10 +1,22 @@
-import axios, { type AxiosResponse } from 'axios';
+import axios, { type AxiosResponse, type AxiosInstance, type AxiosRequestConfig } from 'axios';
 import type { ApiResponse } from '@syncevent/shared';
 
+interface ApiClient extends Omit<AxiosInstance, 'get' | 'post' | 'put' | 'delete' | 'patch'> {
+  get<T>(url: string, config?: AxiosRequestConfig): Promise<T>;
+  post<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>;
+  put<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>;
+  patch<T>(url: string, data?: unknown, config?: AxiosRequestConfig): Promise<T>;
+  delete<T>(url: string, config?: AxiosRequestConfig): Promise<T>;
+}
+
+export const apiGet = <T>(url: string) => apiClient.get<T>(url);
+export const apiPost = <T>(url: string, data?: unknown) => apiClient.post<T>(url, data);
+export const apiPut = <T>(url: string, data?: unknown) => apiClient.put<T>(url, data);
+export const apiDelete = <T>(url: string) => apiClient.delete<T>(url);
 
 const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL,
-});
+}) as ApiClient;
 
 apiClient.interceptors.response.use(
   <T>(response: AxiosResponse<ApiResponse<T>>): T => {
@@ -21,17 +33,5 @@ apiClient.interceptors.response.use(
     return Promise.reject(new Error(message));
   }
 );
-
-export const apiGet = <T>(url: string): Promise<T> =>
-  apiClient.get<T>(url) as unknown as Promise<T>;
-
-export const apiPost = <T>(url: string, data?: unknown): Promise<T> =>
-  apiClient.post<T>(url, data) as unknown as Promise<T>;
-
-export const apiPut = <T>(url: string, data?: unknown): Promise<T> =>
-  apiClient.put<T>(url, data) as unknown as Promise<T>;
-
-export const apiDelete = <T>(url: string): Promise<T> =>
-  apiClient.delete<T>(url) as unknown as Promise<T>;
 
 export default apiClient;
