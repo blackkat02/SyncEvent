@@ -3,8 +3,8 @@ import { yupResolver } from "@hookform/resolvers/yup";
 import { useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { loginSchema, type LoginDto } from "@syncevent/shared";
-import { useLoginMutation } from "../../features/auth/authApi";
-import { setCredentials } from "../../features/auth/authSlice";
+import { useLoginMutation } from "../features/auth/authApi";
+import { setCredentials } from "../features/auth/authSlice";
 
 export const LoginPage = () => {
   const navigate = useNavigate();
