@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from "react";
-import apiClient from "../../api/client";
-import { UserProfile } from "@syncevent/shared";
+import { apiGet } from "../../api/client";
+import type { UserProfile } from "@syncevent/shared";
 
-const UserBar: React.FC = () => {
+export const UserBar: React.FC = () => {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const userData = await apiClient.get<UserProfile>("/auth/profile");
+        const userData = await apiGet<UserProfile>("/auth/profile");
         setUser(userData);
       } catch (error) {
         // У майбутньому тут буде редирект на логін
@@ -61,4 +61,4 @@ const UserBar: React.FC = () => {
   );
 };
 
-export default UserBar;
+// export default UserBar;

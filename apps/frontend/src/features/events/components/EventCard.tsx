@@ -26,27 +26,25 @@ export const EventCard = ({
         </h3>
         {isFull && (
           <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-1 rounded uppercase">
-            Full [cite: 26]
+            Full
           </span>
         )}
       </div>
 
-      <p className="text-gray-500 text-sm mb-6 line-clamp-3 flex-grow">
-        {description} [cite: 20]
+      <p className="text-gray-500 text-sm mb-6 line-clamp-3 grow">
+        {description}
       </p>
 
       <div className="space-y-2 mb-6">
         <div className="flex items-center text-sm text-gray-600 gap-2">
-          <span className="font-medium">{date} [cite: 20, 132]</span>
+          <span className="font-medium">{date}</span>
           <span className="text-gray-400">•</span>
-          <span>{time} [cite: 133]</span>
+          <span>{time}</span>
         </div>
-        <div className="text-sm text-gray-600 truncate">
-          📍 {location} [cite: 21]
-        </div>
+        <div className="text-sm text-gray-600 truncate">📍 {location}</div>
         <div className="text-sm font-semibold text-blue-600">
           {participants}
-          {capacity ? `/${capacity}` : ""} participants [cite: 23, 135]
+          {capacity ? `/${capacity}` : ""} participants
         </div>
       </div>
 
