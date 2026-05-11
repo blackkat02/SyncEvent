@@ -10,5 +10,8 @@ export const loginSchema = yup.object({
   password: yup.string().required('Password is required'),
 });
 
-export type RegisterInput = yup.InferType<typeof registerSchema>;
-export type LoginInput = yup.InferType<typeof loginSchema>;
+type RegisterInput = yup.InferType<typeof registerSchema>;
+type LoginInput = yup.InferType<typeof loginSchema>;
+
+export type LoginDto = LoginInput
+export type RegisterDto = RegisterInput

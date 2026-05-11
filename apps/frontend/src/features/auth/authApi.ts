@@ -1,14 +1,13 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 import type { LoginDto, RegisterDto, AuthResponse, UserProfile } from '@syncevent/shared'
-import type { RootState } from '../../store/store'
 
 export const authApi = createApi({
   reducerPath: 'authApi',
   baseQuery: fetchBaseQuery({
     baseUrl: import.meta.env.VITE_API_URL,
-    // Автоматично додає токен до кожного запиту
     prepareHeaders: (headers, { getState }) => {
-      const token = (getState() as RootState).auth.accessToken
+      const state = getState() as { auth: { accessToken: string | null } }
+      const token = state.auth.accessToken
       if (token) {
         headers.set('Authorization', `Bearer ${token}`)
       }

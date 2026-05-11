@@ -1,14 +1,24 @@
+import { useNavigate } from "react-router-dom";
+
 interface EventCardProps {
   title: string;
-  description: string;
+  description: string | null;
   date: string;
   time: string;
   location: string;
   participants: number;
-  capacity?: number;
+  capacity: number | null;
+  isJoined: boolean;
+  isFull: boolean;
+  isOrganizer: boolean;
+  onJoin: () => void;
+  onLeave: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
 export const EventCard = ({
+  eventId,
   title,
   description,
   date,
@@ -16,15 +26,27 @@ export const EventCard = ({
   location,
   participants,
   capacity,
+  isJoined,
+  isFull,
+  isOrganizer,
+  onJoin,
+  onLeave,
+  onEdit,
+  onDelete,
 }: EventCardProps) => {
-  const isFull = !!capacity && participants >= capacity;
+  const navigate = useNavigate();
+
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
+    <div
+      className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+      onClick={() => navigate(`/events/${eventId}`)}
+    >
       <div className="flex justify-between items-start mb-4">
         <h3 className="text-lg font-bold text-gray-900 leading-tight">
           {title}
         </h3>
-        {isFull && (
+
+        {isFull && !isJoined && (
           <span className="bg-red-100 text-red-600 text-xs font-bold px-2 py-1 rounded uppercase">
             Full
           </span>
@@ -41,22 +63,51 @@ export const EventCard = ({
           <span className="text-gray-400">•</span>
           <span>{time}</span>
         </div>
-        <div className="text-sm text-gray-600 truncate">📍 {location}</div>
+        <div className="text-sm text-gray-600 truncate">{location}</div>
         <div className="text-sm font-semibold text-blue-600">
-          {participants}
-          {capacity ? `/${capacity}` : ""} participants
+          {participants} {capacity ? `/ ${capacity}` : ""} participants
         </div>
       </div>
 
+      {/* Секція для організатора */}
+      {isOrganizer && (
+        <div className="flex gap-2 mb-4">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit?.();
+            }}
+            className="text-gray-400 hover:text-blue-600 text-xs px-2 py-1 rounded border border-gray-200"
+          >
+            Edit
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete?.();
+            }}
+            className="text-gray-400 hover:text-red-600 text-xs px-2 py-1 rounded border border-gray-200"
+          >
+            Delete
+          </button>
+        </div>
+      )}
+
       <button
-        disabled={isFull}
+        disabled={isFull && !isJoined}
+        onClick={(e) => {
+          e.stopPropagation();
+          isJoined ? onLeave() : onJoin();
+        }}
         className={`w-full py-2.5 rounded-lg font-medium transition-colors ${
-          isFull
+          isFull && !isJoined
             ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-            : "bg-blue-600 text-white hover:bg-blue-700"
+            : isJoined
+              ? "bg-red-50 text-red-600 hover:bg-red-100"
+              : "bg-blue-600 text-white hover:bg-blue-700"
         }`}
       >
-        {isFull ? "Full" : "Join Event"}
+        {isFull && !isJoined ? "Full" : isJoined ? "Leave Event" : "Join Event"}
       </button>
     </div>
   );

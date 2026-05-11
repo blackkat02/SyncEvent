@@ -1,5 +1,6 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import type { UserProfile } from '@syncevent/shared'
+import type { RootState } from '../../store/store'
 
 interface AuthState {
   user: UserProfile | null
@@ -44,7 +45,5 @@ const authSlice = createSlice({
 export const { setCredentials, logout } = authSlice.actions
 export default authSlice.reducer
 
-// Селектори
-export const selectCurrentUser = (state: { auth: AuthState }) => state.auth.user
-export const selectIsAuthenticated = (state: { auth: AuthState }) =>
-  !!state.auth.accessToken
+export const selectCurrentUser = (state: RootState) => state.auth.user
+export const selectIsAuthenticated = (state: RootState) => !!state.auth.accessToken
