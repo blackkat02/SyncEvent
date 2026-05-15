@@ -2,14 +2,12 @@ import { defineConfig } from 'tsup';
 
 export default defineConfig({
   entry: ['src/index.ts'],
-  format: ['esm', 'cjs'],  // генерує index.js і index.cjs
-  dts: true,
+  format: ['cjs', 'esm'],
+  dts: false,
+  tsconfig: './tsconfig.json',
+  splitting: false,
   sourcemap: true,
   clean: true,
-  // без цього tsup генерує .mjs замість .js
-  outExtension({ format }) {
-    return {
-      js: format === 'cjs' ? '.cjs' : '.js',
-    };
-  },
+  bundle: true,
+  skipNodeModulesBundle: true,
 });

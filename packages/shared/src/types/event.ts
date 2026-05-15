@@ -1,4 +1,4 @@
-import { EventVisibility } from '../schemas/event.schema';
+import { EventVisibility } from '../schemas/event.schema.js';
 
 export interface Participant {
   id: string;
