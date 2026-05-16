@@ -7,7 +7,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
-      '@syncevent/shared': path.resolve(__dirname, '../../packages/shared/src'),
+      '@syncevent/shared': path.resolve(__dirname, '../../packages/shared/dist/index.js'),
     },
   },
 });

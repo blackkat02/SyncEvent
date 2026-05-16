@@ -6,13 +6,14 @@
     "dev": "pnpm --parallel -r dev",
     "dev:backend": "pnpm --filter backend start:dev",
     "dev:frontend": "pnpm --filter frontend dev",
-    "build": "pnpm -r build",
+    "build": "tsup && tsc --emitDeclarationOnly --noEmit false",
     "lint": "pnpm -r lint",
     "db:generate": "pnpm --filter backend exec prisma generate",
     "db:studio": "pnpm --filter backend exec prisma studio"
   },
   "packageManager": "pnpm@10.30.2",
   "devDependencies": {
+    "@types/pg": "^8.20.0",
     "typescript": "^5.9.3"
   },
   "dependencies": {

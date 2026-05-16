@@ -1,29 +1,18 @@
 {
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "module": "nodenext",
-    "moduleResolution": "nodenext",
-    "resolvePackageJsonExports": true,
-    "esModuleInterop": true,
-    "isolatedModules": true,
-    "declaration": true,
-    "removeComments": true,
+    "outDir": "./dist",
+    "rootDir": ".",
+    "module": "NodeNext",
+    "target": "ES2023",
+    "types": ["node"],
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "allowSyntheticDefaultImports": true,
-    "target": "ES2023",
-    "sourceMap": true,
-    "outDir": "./dist",
-    "baseUrl": "./",
-    "incremental": true,
-    "skipLibCheck": true,
-    "strictNullChecks": true,
-    "forceConsistentCasingInFileNames": true,
-    "noImplicitAny": true,
-    "strictBindCallApply": true,
-    "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@syncevent/shared": ["../../packages/shared/src/index.ts"]
-    },
+      "@syncevent/shared": ["../../packages/shared/dist/index.d.ts"]
+    }
   },
-  "exclude": ["node_modules", "dist", ".eslintrc.js"]
+  "include": ["src/**/*", "prisma/**/*", "env.ts"],
+  "exclude": ["node_modules", "dist"],
+  "references": [{ "path": "../../packages/shared" }]
 }

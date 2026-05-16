@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { MainLayout } from "./components/layout/MainLayout";
+import { RegisterPage } from "./pages/RegisterPage";
+import { LoginPage } from "./pages/LoginPage";
 
 function App() {
   return (
@@ -11,8 +13,8 @@ function App() {
           <Route path="events/create" element={<div>Create Event</div>} />
           <Route path="my-events" element={<div>My Events (Calendar)</div>} />
         </Route>
-        <Route path="/auth/login" element={<div>Login</div>} />
-        <Route path="/auth/register" element={<div>Register</div>} />
+        <Route path="/auth/register" element={<RegisterPage />} />
+        <Route path="/auth/login" element={<LoginPage />} />
       </Routes>
     </BrowserRouter>
   );

@@ -5,13 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { CreateEventDto } from './dto/create-event.dto';
-import { PrismaService } from 'prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { Visibility } from '@prisma/client';
 
 @Injectable()
 export class EventsService {
-  // eslint-disable-next-line prettier/prettier
   constructor(private readonly prisma: PrismaService) { }
 
   async create(dto: CreateEventDto, userId: string) {

@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import {
   ConflictException,
   Injectable,
@@ -7,8 +6,8 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { RegisterDto } from './dto/register.dto';
 import { Prisma } from '@prisma/client';
+import { RegisterDto } from './dto/register.dto';
 import { AuthResponse } from '@syncevent/shared';
 import { env } from '../../env';
 
@@ -22,19 +21,18 @@ export class AuthService {
   async register(dto: RegisterDto): Promise<AuthResponse> {
     try {
       const hashedPassword = await bcrypt.hash(dto.password, 10);
-
       const user = await this.prisma.user.create({
-        data: {
-          email: dto.email,
-          password: hashedPassword,
-        },
+        data: { email: dto.email, password: hashedPassword },
       });
-
       const tokens = await this.getTokens(user.id, user.email);
       await this.updateRefreshToken(user.id, tokens.refreshToken);
-
       return {
-        user: { id: user.id, email: user.email },
+        user: {
+          id: user.id,
+          email: user.email,
+          displayName: user.displayName ?? null,
+          avatarUrl: user.avatarUrl ?? null,
+        },
         ...tokens,
       };
     } catch (error: unknown) {
@@ -52,66 +50,46 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
-
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
+    if (!user) throw new UnauthorizedException('Invalid credentials');
     const isPasswordValid = await bcrypt.compare(dto.password, user.password);
-    if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
-
+    if (!isPasswordValid) throw new UnauthorizedException('Invalid credentials');
     const tokens = await this.getTokens(user.id, user.email);
     await this.updateRefreshToken(user.id, tokens.refreshToken);
-
     return {
-      user: { id: user.id, email: user.email },
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName ?? null,
+        avatarUrl: user.avatarUrl ?? null,
+      },
       ...tokens,
     };
+  }
+
+  async refreshTokens(userId: string, refreshToken: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.refreshToken) {
+      throw new UnauthorizedException('Access Denied');
+    }
+    const isTokenMatch = await bcrypt.compare(refreshToken, user.refreshToken);
+    if (!isTokenMatch) throw new UnauthorizedException('Access Denied');
+    const tokens = await this.getTokens(user.id, user.email);
+    await this.updateRefreshToken(user.id, tokens.refreshToken);
+    return tokens;
   }
 
   private async getTokens(userId: string, email: string) {
     const [accessToken, refreshToken] = await Promise.all([
       this.jwtService.signAsync(
         { sub: userId, email },
-        {
-          expiresIn: '15m',
-          secret: env.JWT_SECRET,
-        },
+        { expiresIn: '15m', secret: env.JWT_SECRET },
       ),
       this.jwtService.signAsync(
         { sub: userId, email },
-        {
-          expiresIn: '7d',
-          secret: env.JWT_REFRESH_SECRET,
-        },
+        { expiresIn: '7d', secret: env.JWT_REFRESH_SECRET },
       ),
     ]);
-
     return { accessToken, refreshToken };
-  }
-
-  async refreshTokens(userId: string, refreshToken: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user || !('refreshToken' in user) || !user.refreshToken) {
-      throw new UnauthorizedException('Access Denied');
-    }
-
-    const hashedRT = user.refreshToken;
-    const isTokenMatch = await bcrypt.compare(refreshToken, hashedRT);
-
-    if (!isTokenMatch) {
-      throw new UnauthorizedException('Access Denied');
-    }
-
-    const tokens = await this.getTokens(user.id, user.email);
-    await this.updateRefreshToken(user.id, tokens.refreshToken);
-
-    return tokens;
   }
 
   async updateRefreshToken(userId: string, refreshToken: string) {

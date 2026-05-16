@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import {
   Controller,
   Post,
@@ -19,7 +18,9 @@ import {
 import { AuthService } from './auth.service';
 import {
   registerSchema,
+  loginSchema,
   AuthResponse,
+  type LoginInput,
   type UserProfile,
   type RegisterInput,
 } from '@syncevent/shared';
@@ -48,8 +49,8 @@ export class AuthController {
     status: 200,
     description: 'Return access and refresh tokens.',
   })
-  @UsePipes(new YupValidationPipe(registerSchema))
-  async login(@Body() loginDto: RegisterInput): Promise<AuthResponse> {
+  @UsePipes(new YupValidationPipe(loginSchema))
+  async login(@Body() loginDto: LoginInput): Promise<AuthResponse> {
     return await this.authService.login(loginDto);
   }
 

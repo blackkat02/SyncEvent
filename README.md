@@ -20,4 +20,4 @@ docker logs -f sync-event-backend
 ## Корисні команди для розробки
 
 - **Rebuild Shared**: `pnpm --filter @syncevent/shared build`
-- **Database Studio (Prisma)**: `npx prisma studio` (всередині контейнера бекенду)
+- **Database Studio (Prisma)**: `npx prisma studio` (контейнер бекенду)

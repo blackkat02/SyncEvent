@@ -25,7 +25,6 @@ export const LoginPage = () => {
       dispatch(setCredentials(result));
       navigate("/");
     } catch (error: unknown) {
-      // помилка вже є в стейті через RTK Query
       console.error(error);
     }
   };

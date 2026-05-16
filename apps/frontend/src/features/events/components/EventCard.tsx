@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 
 interface EventCardProps {
+  eventId: string;
   title: string;
   description: string | null;
   date: string;

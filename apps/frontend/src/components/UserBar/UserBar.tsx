@@ -1,64 +1,44 @@
-import React, { useEffect, useState } from "react";
-import { apiGet } from "../../api/client";
-import type { UserProfile } from "@syncevent/shared";
+import { useGetProfileQuery } from "../../features/auth/authApi";
+import { useAppSelector } from "../../store/hooks";
+import { selectIsAuthenticated } from "../../features/auth/authSlice";
+import { useNavigate } from "react-router-dom";
 
 export const UserBar: React.FC = () => {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const isAuthenticated = useAppSelector(selectIsAuthenticated);
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const userData = await apiGet<UserProfile>("/auth/profile");
-        setUser(userData);
-      } catch (error) {
-        // У майбутньому тут буде редирект на логін
-        console.error("Failed to fetch user:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const { data: user, isLoading } = useGetProfileQuery(undefined, {
+    skip: !isAuthenticated,
+  });
 
-    fetchUser();
-  }, []);
+  if (isLoading)
+    return <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse" />;
 
-  if (loading) {
+  if (!user)
     return (
-      <div className="flex items-center gap-2 animate-pulse">
-        <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
-        <div className="w-24 h-4 bg-gray-200 rounded"></div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return (
-      <button className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors">
+      <button
+        onClick={() => navigate("/auth/login")}
+        className="px-4 py-2 text-sm font-medium bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+      >
         Sign In
       </button>
     );
-  }
 
   return (
-    <div className="flex items-center gap-3 p-2 rounded-full hover:bg-gray-100 cursor-pointer transition-colors group">
-      {/* Аватарка з обгорткою для ефекту */}
-      <div className="relative w-10 h-10 overflow-hidden rounded-full ring-2 ring-indigo-100 group-hover:ring-indigo-200 transition-all">
+    <div className="flex items-center gap-3 p-2 rounded-full hover:bg-gray-100 cursor-pointer">
+      <div className="relative w-10 h-10 overflow-hidden rounded-full ring-2 ring-indigo-100">
         <img
-          src={user.avatarUrl || "/default-avatar.png"} // Тимчасово, поки немає дефолтної
-          alt={user.displayName}
+          src={
+            user.avatarUrl ??
+            `https://ui-avatars.com/api/?name=${user.displayName}`
+          }
+          alt={user.displayName ?? user.email}
           className="w-full h-full object-cover"
         />
       </div>
-
-      {/* Блок з текстом */}
-      <div className="flex flex-col">
-        <span className="text-sm font-semibold text-gray-900 group-hover:text-indigo-700 transition-colors">
-          {user.displayName}
-        </span>
-        <span className="text-xs text-gray-500">My Account</span>
-      </div>
+      <span className="text-sm font-medium text-gray-700">
+        {user.displayName ?? user.email}
+      </span>
     </div>
   );
 };
-
-// export default UserBar;
