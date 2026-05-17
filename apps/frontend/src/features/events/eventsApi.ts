@@ -1,6 +1,5 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
-import type { EventResponse } from '@syncevent/shared'
-import type { CreateEventInput, UpdateEventInput } from '@syncevent/shared'
+import type { EventResponse, EventDetailResponse, CreateEventInput, UpdateEventInput } from '@syncevent/shared'
 import type { RootState } from '../../store/store'
 
 interface ApiWrapper<T> {
@@ -27,9 +26,9 @@ export const eventsApi = createApi({
       providesTags: ['Event'],
     }),
 
-    getEventById: builder.query<EventResponse, string>({
+    getEventById: builder.query<EventDetailResponse, string>({
       query: (id) => `/events/${id}`,
-      transformResponse: (response: ApiWrapper<EventResponse>) => response.data,
+      transformResponse: (response: ApiWrapper<EventDetailResponse>) => response.data,
       providesTags: (_result, _error, id) => [{ type: 'Event', id }],
     }),
 
