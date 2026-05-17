@@ -1,6 +1,12 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 import type { LoginDto, RegisterDto, AuthResponse, UserProfile } from '@syncevent/shared'
 
+interface ApiWrapper<T> {
+  success: boolean
+  data: T
+  message: string
+}
+
 export const authApi = createApi({
   reducerPath: 'authApi',
   baseQuery: fetchBaseQuery({
@@ -21,6 +27,7 @@ export const authApi = createApi({
         method: 'POST',
         body: credentials,
       }),
+      transformResponse: (response: ApiWrapper<AuthResponse>) => response.data,
     }),
 
     register: builder.mutation<AuthResponse, RegisterDto>({
@@ -29,10 +36,12 @@ export const authApi = createApi({
         method: 'POST',
         body: userData,
       }),
+      transformResponse: (response: ApiWrapper<AuthResponse>) => response.data,
     }),
 
     getProfile: builder.query<UserProfile, void>({
       query: () => '/auth/profile',
+      transformResponse: (response: ApiWrapper<UserProfile>) => response.data,
     }),
   }),
 })

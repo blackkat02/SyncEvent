@@ -1,20 +1,42 @@
 import { useGetProfileQuery } from "../../features/auth/authApi";
-import { useAppSelector } from "../../store/hooks";
-import { selectIsAuthenticated } from "../../features/auth/authSlice";
+import { useAppSelector, useAppDispatch } from "../../store/hooks";
+import {
+  selectIsAuthenticated,
+  selectCurrentUser,
+  setCredentials,
+} from "../../features/auth/authSlice";
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 
 export const UserBar: React.FC = () => {
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
+  const cachedUser = useAppSelector(selectCurrentUser);
 
   const { data: user, isLoading } = useGetProfileQuery(undefined, {
     skip: !isAuthenticated,
   });
 
+  // Синхронізуємо профіль з Redux після завантаження
+  useEffect(() => {
+    if (user && !cachedUser) {
+      dispatch(
+        setCredentials({
+          user,
+          accessToken: localStorage.getItem("accessToken") ?? "",
+          refreshToken: localStorage.getItem("refreshToken") ?? "",
+        }),
+      );
+    }
+  }, [user, cachedUser, dispatch]);
+
+  const displayUser = cachedUser ?? user;
+
   if (isLoading)
     return <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse" />;
 
-  if (!user)
+  if (!displayUser)
     return (
       <button
         onClick={() => navigate("/auth/login")}
@@ -29,15 +51,15 @@ export const UserBar: React.FC = () => {
       <div className="relative w-10 h-10 overflow-hidden rounded-full ring-2 ring-indigo-100">
         <img
           src={
-            user.avatarUrl ??
-            `https://ui-avatars.com/api/?name=${user.displayName}`
+            displayUser.avatarUrl ??
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(displayUser.displayName ?? displayUser.email)}`
           }
-          alt={user.displayName ?? user.email}
+          alt={displayUser.displayName ?? displayUser.email}
           className="w-full h-full object-cover"
         />
       </div>
       <span className="text-sm font-medium text-gray-700">
-        {user.displayName ?? user.email}
+        {displayUser.displayName ?? displayUser.email}
       </span>
     </div>
   );

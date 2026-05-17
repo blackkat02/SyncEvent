@@ -1,88 +1,28 @@
-import { useForm } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
-import { useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
-import { loginSchema, type LoginDto } from "@syncevent/shared";
-import { useLoginMutation } from "../features/auth/authApi";
-import { setCredentials } from "../features/auth/authSlice";
+import { LoginForm } from "../features/auth/components/LoginForm";
+import { Link } from "react-router-dom";
 
 export const LoginPage = () => {
-  const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const [login, { isLoading }] = useLoginMutation();
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginDto>({
-    resolver: yupResolver(loginSchema),
-  });
-
-  const onSubmit = async (data: LoginDto) => {
-    try {
-      const result = await login(data).unwrap();
-      dispatch(setCredentials(result));
-      navigate("/");
-    } catch (error: unknown) {
-      console.error(error);
-    }
-  };
-
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-2xl shadow-xl">
-        <div className="text-center">
-          <h2 className="text-3xl font-bold text-gray-900">Welcome Back</h2>
-          <p className="text-gray-500 mt-2">Log in to manage your events</p>
-        </div>
+    <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md">
+        <h1 className="text-center text-3xl font-extrabold text-blue-600">
+          RADENCY
+        </h1>
+        <h2 className="mt-6 text-center text-2xl font-bold text-gray-900">
+          Sign in to your account
+        </h2>
+      </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <input
-              {...register("email")}
-              type="email"
-              placeholder="Email"
-              className="w-full px-4 py-3 border rounded-lg outline-blue-600"
-            />
-            {errors.email && (
-              <p className="text-red-500 text-sm mt-1">
-                {errors.email.message}
-              </p>
-            )}
-          </div>
-
-          <div>
-            <input
-              {...register("password")}
-              type="password"
-              placeholder="Password"
-              className="w-full px-4 py-3 border rounded-lg outline-blue-600"
-            />
-            {errors.password && (
-              <p className="text-red-500 text-sm mt-1">
-                {errors.password.message}
-              </p>
-            )}
-          </div>
-
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold hover:bg-blue-700 transition disabled:opacity-50"
-          >
-            {isLoading ? "Logging in..." : "Log In"}
-          </button>
-        </form>
-
-        <p className="text-center text-gray-500 text-sm">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <LoginForm />
+        <p className="mt-4 text-center text-sm text-gray-600">
           Don't have an account?{" "}
-          <a
-            href="/auth/register"
-            className="text-blue-600 font-medium hover:underline"
+          <Link
+            to="/auth/register"
+            className="font-medium text-blue-600 hover:text-blue-500"
           >
             Sign up
-          </a>
+          </Link>
         </p>
       </div>
     </div>
