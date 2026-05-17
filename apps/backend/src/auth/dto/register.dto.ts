@@ -1,10 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { RegisterInput } from '@syncevent/shared';
+import type { RegisterInput } from '@syncevent/shared';
 
 export class RegisterDto implements RegisterInput {
   @ApiProperty({ example: 'user@example.com' })
-  email: string;
+  email!: string;
 
   @ApiProperty({ example: 'password123' })
-  password: string;
+  password!: string;
 }

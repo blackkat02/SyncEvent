@@ -16,7 +16,7 @@ async function bootstrap() {
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api', app, document);
+  SwaggerModule.setup('docs', app, document);
 
   // Enable CORS for frontend
   const allowedOrigins = process.env.CORS_ORIGINS?.split(',') || ['http://localhost:5173', 'http://localhost:3000'];
@@ -30,6 +30,8 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
 
   const port = process.env.PORT ?? 3000;
+
+  app.setGlobalPrefix('api');
 
   await app.listen(port);
 

@@ -1,7 +1,9 @@
-import { configureStore } from '@reduxjs/toolkit'
-import { authApi } from '../features/auth/authApi'
-import { eventsApi } from '../features/events/eventsApi'
-import authReducer from '../features/auth/authSlice'
+import { useDispatch, useSelector } from 'react-redux';
+import type { TypedUseSelectorHook } from 'react-redux';
+import { configureStore } from '@reduxjs/toolkit';
+import { authApi } from '../../src/features/auth/authApi';
+import { eventsApi } from '../../src/features/events/eventsApi';
+import authReducer from '../../src/features/auth/authSlice';
 
 export const store = configureStore({
   reducer: {
@@ -17,3 +19,6 @@ export const store = configureStore({
 
 export type RootState = ReturnType<typeof store.getState>
 export type AppDispatch = typeof store.dispatch
+
+export const useAppDispatch = () => useDispatch<AppDispatch>();
+export const useAppSelector: TypedUseSelectorHook<RootState> = useSelector;

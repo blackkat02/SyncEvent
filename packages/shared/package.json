@@ -14,7 +14,7 @@
     }
   },
   "scripts": {
-    "build": "tsup"
+    "build": "tsup && tsc --emitDeclarationOnly --noEmit false"
   },
   "dependencies": {
     "yup": "^1.7.1"
