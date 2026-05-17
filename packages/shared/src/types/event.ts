@@ -1,11 +1,5 @@
 import { EventVisibility } from '../schemas/event.schema.js';
 
-export interface Participant {
-  id: string;
-  displayName: string | null;
-  avatarUrl: string | null;
-}
-
 export interface EventResponse {
   id: string;
   title: string;
@@ -15,8 +9,7 @@ export interface EventResponse {
   capacity: number | null;
   visibility: EventVisibility;
   authorId: string;
-  participants: Participant[];
-  participantsCount: number;
+  author: { id: string; email: string };
+  _count: { participants: number };
   isJoined: boolean;
-  isAuthor: boolean;
 }
