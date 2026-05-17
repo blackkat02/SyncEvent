@@ -9,7 +9,7 @@ interface AuthState {
 }
 
 const initialState: AuthState = {
-  user: null,
+  user: JSON.parse(localStorage.getItem('user') ?? 'null'),
   accessToken: localStorage.getItem('accessToken'),
   refreshToken: localStorage.getItem('refreshToken'),
 }
@@ -31,6 +31,7 @@ const authSlice = createSlice({
       state.refreshToken = action.payload.refreshToken
       localStorage.setItem('accessToken', action.payload.accessToken)
       localStorage.setItem('refreshToken', action.payload.refreshToken)
+      localStorage.setItem('user', JSON.stringify(action.payload.user))
     },
     logout: (state) => {
       state.user = null
@@ -38,6 +39,7 @@ const authSlice = createSlice({
       state.refreshToken = null
       localStorage.removeItem('accessToken')
       localStorage.removeItem('refreshToken')
+      localStorage.removeItem('user')
     },
   },
 })

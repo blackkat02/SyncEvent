@@ -1,12 +1,14 @@
-import { useGetProfileQuery } from "../../features/auth/authApi";
+import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
+import { LogOut } from "lucide-react";
+import { authApi, useGetProfileQuery } from "../../features/auth/authApi";
 import { useAppSelector, useAppDispatch } from "../../store/hooks";
 import {
   selectIsAuthenticated,
   selectCurrentUser,
   setCredentials,
+  logout,
 } from "../../features/auth/authSlice";
-import { useNavigate } from "react-router-dom";
-import { useEffect } from "react";
 
 export const UserBar: React.FC = () => {
   const navigate = useNavigate();
@@ -18,7 +20,6 @@ export const UserBar: React.FC = () => {
     skip: !isAuthenticated,
   });
 
-  // Синхронізуємо профіль з Redux після завантаження
   useEffect(() => {
     if (user && !cachedUser) {
       dispatch(
@@ -61,6 +62,18 @@ export const UserBar: React.FC = () => {
       <span className="text-sm font-medium text-gray-700">
         {displayUser.displayName ?? displayUser.email}
       </span>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          dispatch(logout());
+          dispatch(authApi.util.resetApiState());
+          navigate("/auth/login");
+        }}
+        className="p-1.5 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+        title="Sign out"
+      >
+        <LogOut size={16} />
+      </button>
     </div>
   );
 };
