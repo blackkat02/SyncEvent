@@ -1,50 +1,52 @@
 import { useNavigate } from "react-router-dom";
+import type { EventResponse } from "@syncevent/shared";
 
 interface EventCardProps {
-  eventId: string;
-  title: string;
-  description: string | null;
-  date: string;
-  time: string;
-  location: string;
-  participants: number;
-  capacity: number | null;
-  isJoined: boolean;
-  isFull: boolean;
-  isOrganizer: boolean;
-  onJoin: () => void;
-  onLeave: () => void;
-  onEdit?: () => void;
-  onDelete?: () => void;
+  event: EventResponse;
+  // title: string;
+  // description: string | null;
+  // date: string;
+  // time: string;
+  // location: string;
+  // participants: number;
+  // capacity: number | null;
+  // authorId: string;
+  currentUserId?: string;
+  // isJoined: boolean;
+  onJoin: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  onLeave: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 export const EventCard = ({
-  eventId,
-  title,
-  description,
-  date,
-  time,
-  location,
-  participants,
-  capacity,
-  isJoined,
-  isFull,
-  isOrganizer,
+  event,
+  // title,
+  // description,
+  // date,
+  // time,
+  // location,
+  // participants,
+  // capacity,
+  // authorId,
+  currentUserId,
+  // isJoined,
   onJoin,
   onLeave,
-  onEdit,
-  onDelete,
 }: EventCardProps) => {
   const navigate = useNavigate();
+
+  const isOrganizer = !!currentUserId && event.authorId === currentUserId;
+  const isFull = event.capacity
+    ? event._count.participants >= event.capacity
+    : false;
 
   return (
     <div
       className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-      onClick={() => navigate(`/events/${eventId}`)}
+      onClick={() => navigate(`/events/${event.id}`)}
     >
       <div className="flex justify-between items-start mb-4">
         <h3 className="text-lg font-bold text-gray-900 leading-tight">
-          {title}
+          {event.title}
         </h3>
 
         {isFull && !isJoined && (
@@ -70,7 +72,6 @@ export const EventCard = ({
         </div>
       </div>
 
-      {/* Секція для організатора */}
       {isOrganizer && (
         <div className="flex gap-2 mb-4">
           <button

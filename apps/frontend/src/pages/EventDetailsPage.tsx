@@ -78,16 +78,31 @@ export const EventDetailsPage = () => {
             </span>
             <p className="text-gray-900 font-medium">{event.location}</p>
           </div>
-          {event.capacity && (
-            <div className="space-y-1">
-              <span className="text-sm text-gray-400 uppercase font-bold">
-                Capacity
-              </span>
-              <p className="text-gray-900 font-medium">
-                {event._count.participants} / {event.capacity}
-              </p>
-            </div>
-          )}
+        </div>
+
+        <div className="pt-8">
+          <h4 className="text-xl font-bold mb-4">
+            Participants ({event._count.participants}
+            {event.capacity ? ` / ${event.capacity}` : ""})
+          </h4>
+          <div className="flex flex-wrap gap-2">
+            {event.participants.map((p) => {
+              const isAuthor = p.id === event.authorId;
+              return (
+                <div
+                  key={p.id}
+                  className={`px-4 py-2 rounded-full text-sm font-medium ${
+                    isAuthor
+                      ? "bg-blue-50 text-blue-700"
+                      : "bg-gray-100 text-gray-700"
+                  }`}
+                >
+                  {p.displayName ?? p.email}
+                  {isAuthor && " (Organizer)"}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>

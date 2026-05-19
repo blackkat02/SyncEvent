@@ -39,9 +39,9 @@ export const EventsPage = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {events?.map((event) => {
-          const isFull =
-            event.capacity !== null &&
-            event._count.participants >= (event.capacity ?? Infinity);
+          const isFull = event.capacity
+            ? event._count.participants >= event.capacity
+            : false;
           const isOrganizer = event.authorId === currentUser?.id;
 
           return (

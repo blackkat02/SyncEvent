@@ -15,7 +15,7 @@ export interface EventResponse {
   capacity: number | null;
   visibility: EventVisibility;
   authorId: string;
-  author: { id: string; email: string };
+  author: { id: string; email: string; displayName: string | null };
   _count: { participants: number };
   isJoined: boolean;
 }
