@@ -6,7 +6,6 @@ import {
 import { useAppSelector } from "../store/hooks";
 import { selectCurrentUser } from "../features/auth/authSlice";
 import { EventCard } from "../features/events/components/EventCard";
-// import type { Participant } from "@syncevent/shared";
 
 export const EventsPage = () => {
   const { data: events, isLoading, isError } = useGetEventsQuery();
