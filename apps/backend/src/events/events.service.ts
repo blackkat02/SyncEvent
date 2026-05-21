@@ -83,7 +83,12 @@ export class EventsService {
       }
     }
 
-    return event;
+    return {
+      ...event,
+      isJoined: currentUserId
+        ? event.participants.some((p) => p.id === currentUserId)
+        : false,
+    };
   }
 
   async joinEvent(eventId: string, userId: string) {

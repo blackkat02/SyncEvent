@@ -87,7 +87,7 @@ export const EventCard = ({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              // ТУТ в майбутньому буде твій onEdit?.()
+              // ТУТ в майбутньому буде onEdit?.()
               console.log("Edit clicked");
             }}
             className="text-gray-500 hover:text-blue-600 text-xs px-3 py-1.5 rounded-lg border border-gray-200 transition-colors"
