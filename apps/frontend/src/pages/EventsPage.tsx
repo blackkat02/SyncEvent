@@ -6,7 +6,6 @@ import {
 import { useAppSelector } from "../store/hooks";
 import { selectCurrentUser } from "../features/auth/authSlice";
 import { EventCard } from "../features/events/components/EventCard";
-// import type { Participant } from "@syncevent/shared";
 
 export const EventsPage = () => {
   const { data: events, isLoading, isError } = useGetEventsQuery();
@@ -39,28 +38,11 @@ export const EventsPage = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {events?.map((event) => {
-          const isFull =
-            event.capacity !== null &&
-            event._count.participants >= (event.capacity ?? Infinity);
-          const isOrganizer = event.authorId === currentUser?.id;
-
           return (
             <EventCard
               key={event.id}
-              eventId={event.id}
-              title={event.title}
-              description={event.description}
-              date={new Date(event.date).toLocaleDateString()}
-              time={new Date(event.date).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-              location={event.location}
-              participants={event._count.participants}
-              capacity={event.capacity}
-              isJoined={event.isJoined}
-              isFull={isFull}
-              isOrganizer={isOrganizer}
+              event={event}
+              currentUserId={currentUser?.id}
               onJoin={() => joinEvent(event.id)}
               onLeave={() => leaveEvent(event.id)}
             />
