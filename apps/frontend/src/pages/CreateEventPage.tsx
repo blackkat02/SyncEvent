@@ -1,24 +1,15 @@
 import { useForm } from "react-hook-form";
+import type { Resolver, SubmitHandler } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useNavigate } from "react-router-dom";
-import { format, parse } from "date-fns";
 import { useCreateEventMutation } from "../features/events/eventsApi";
 import { Calendar, Clock, MapPin, Users, Globe, ArrowLeft } from "lucide-react";
-
 import { createEventSchema, EventVisibility } from "@syncevent/shared";
 import type { CreateEventRequest } from "@syncevent/shared";
 import { useEffect } from "react";
+import * as yup from "yup";
 
-interface EventFormState {
-  title: string;
-  description: string;
-  location: string;
-  capacity: number | null;
-  visibility: EventVisibility;
-  dateStr: string;
-  timeStr: string;
-  date: any;
-}
+type EventFormState = yup.InferType<typeof createEventSchema>;
 
 export const CreateEventPage = () => {
   const navigate = useNavigate();
@@ -28,9 +19,8 @@ export const CreateEventPage = () => {
     register,
     handleSubmit,
     formState: { errors },
-    setValue,
   } = useForm<EventFormState>({
-    resolver: yupResolver(createEventSchema as any) as any,
+    resolver: yupResolver(createEventSchema) as any,
     defaultValues: {
       title: "",
       description: "",
@@ -43,20 +33,26 @@ export const CreateEventPage = () => {
     },
   });
 
-  const onSubmit = async (values: any) => {
+  useEffect(() => {
+    if (Object.keys(errors).length > 0) {
+      console.warn("⚠️ Валідація не пройшла:", errors);
+    }
+  }, [errors]);
+
+  const onSubmit: SubmitHandler<EventFormState> = async (values) => {
     try {
       const combinedDate = new Date(`${values.dateStr}T${values.timeStr}`);
 
       const payload: CreateEventRequest = {
         title: values.title,
         location: values.location,
-        visibility: values.visibility,
-        description: values.description || null,
+        visibility: values.visibility as EventVisibility,
+        description: values.description ?? null,
         capacity: values.capacity ? Number(values.capacity) : null,
         date: combinedDate.toISOString(),
       };
 
-      await createEvent(payload).unwrap();
+      await createEvent(payload as any).unwrap();
       navigate("/my-events");
     } catch (error) {
       console.error("Failed to create event:", error);
@@ -113,14 +109,15 @@ export const CreateEventPage = () => {
             <input
               type="date"
               {...register("dateStr")}
-              onChange={(e) => {
-                // Оновлюємо текстове поле
-                setValue("dateStr", e.target.value);
-                // Штовхаємо Yup, що дата є
-                setValue("date", new Date(e.target.value) as any);
-              }}
-              className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
+              className={`w-full p-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none ${
+                errors.dateStr ? "border-red-500" : "border-gray-200"
+              }`}
             />
+            {errors.dateStr && (
+              <p className="text-xs font-semibold text-red-500 mt-1">
+                {errors.dateStr.message}
+              </p>
+            )}
           </div>
           <div className="space-y-2">
             <label className="text-sm font-bold text-gray-700 flex items-center gap-1.5">

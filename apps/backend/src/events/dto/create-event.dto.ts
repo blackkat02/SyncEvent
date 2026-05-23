@@ -1,21 +1,21 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { CreateEventInput, EventVisibility } from '@syncevent/shared';
+import { EventVisibility } from '@syncevent/shared';
 
-export class CreateEventDto implements CreateEventInput {
-  @ApiProperty({ example: 'Tech Conference 2026' })
+export class CreateEventDto {
+  @ApiProperty()
   title!: string;
 
-  @ApiProperty({ example: 'Description...', required: false })
-  description?: string;
+  @ApiProperty({ required: false, nullable: true })
+  description?: string | null;
 
-  @ApiProperty({ example: '2026-11-15T09:00:00Z', type: String })
-  date!: Date;
+  @ApiProperty({ description: 'ISO string date' })
+  date!: string;
 
-  @ApiProperty({ example: 'Kyiv, Ukraine' })
+  @ApiProperty()
   location!: string;
 
-  @ApiProperty({ example: 500, required: false })
-  capacity?: number;
+  @ApiProperty({ required: false, nullable: true })
+  capacity?: number | null; // Опціональне поле через "?"
 
   @ApiProperty({
     enum: EventVisibility,
