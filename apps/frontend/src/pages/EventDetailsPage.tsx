@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import {
   useGetEventByIdQuery,
   useDeleteEventMutation,
-  useJoinEventMutation, // Підключаємо мутації
+  useJoinEventMutation,
   useLeaveEventMutation,
 } from "../features/events/eventsApi";
 import { useAppSelector } from "../store/hooks";
@@ -14,13 +14,6 @@ export const EventDetailsPage = () => {
   const currentUser = useAppSelector(selectCurrentUser);
 
   const { data: event, isLoading, isError } = useGetEventByIdQuery(id!);
-  console.log("=== DIAGNOSTIC ===");
-  console.log("ID from URL:", id);
-  console.log("Is Loading:", isLoading);
-
-  console.log("Is Error:", isError);
-  console.log("Raw Error Object:", isError);
-  console.log("Fetched Data:", event);
   const [deleteEvent] = useDeleteEventMutation();
   const [joinEvent, { isLoading: isJoining }] = useJoinEventMutation();
   const [leaveEvent, { isLoading: isLeaving }] = useLeaveEventMutation();

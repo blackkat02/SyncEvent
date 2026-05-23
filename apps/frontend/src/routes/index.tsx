@@ -5,6 +5,7 @@ import { RegisterPage } from "../pages/RegisterPage";
 import { EventsPage } from "../pages/EventsPage";
 import { EventDetailsPage } from "../pages/EventDetailsPage";
 import { MyEventsPage } from "../pages/MyEventsPage";
+import { CreateEventPage } from "../pages/CreateEventPage";
 
 export const router = createBrowserRouter([
   {
@@ -13,7 +14,7 @@ export const router = createBrowserRouter([
     children: [
       { index: true, element: <EventsPage /> },
       { path: "events/:id", element: <EventDetailsPage /> },
-      { path: "events/create", element: <div>Create Event</div> },
+      { path: "events/create", element: <CreateEventPage /> },
       { path: "my-events", element: <MyEventsPage /> },
     ],
   },
