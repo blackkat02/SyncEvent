@@ -23,3 +23,14 @@ export interface EventResponse {
 export interface EventDetailResponse extends EventResponse {
   participants: Participant[];
 }
+
+export interface CreateEventRequest {
+  title: string;
+  location: string;
+  visibility: EventVisibility;
+  description?: string | null;
+  date: string;
+  capacity?: number | null;
+}
+
+export type UpdateEventRequest = Partial<CreateEventRequest>;

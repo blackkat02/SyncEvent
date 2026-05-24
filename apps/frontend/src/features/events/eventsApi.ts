@@ -32,7 +32,7 @@ export const eventsApi = createApi({
       providesTags: (_result, _error, id) => [{ type: 'Event', id }],
     }),
 
-    getMyEvents: builder.query<EventResponse[], void>({
+    getMyCalendar: builder.query<EventResponse[], void>({
       query: () => '/events/me/calendar',
       transformResponse: (response: ApiWrapper<EventResponse[]>) => response.data,
       providesTags: ['MyEvents'],
@@ -68,7 +68,7 @@ export const eventsApi = createApi({
 export const {
   useGetEventsQuery,
   useGetEventByIdQuery,
-  useGetMyEventsQuery,
+  useGetMyCalendarQuery,
   useCreateEventMutation,
   useUpdateEventMutation,
   useDeleteEventMutation,

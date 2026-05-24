@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import {
   useGetEventByIdQuery,
   useDeleteEventMutation,
-  useJoinEventMutation, // Підключаємо мутації
+  useJoinEventMutation,
   useLeaveEventMutation,
 } from "../features/events/eventsApi";
 import { useAppSelector } from "../store/hooks";
@@ -14,12 +14,6 @@ export const EventDetailsPage = () => {
   const currentUser = useAppSelector(selectCurrentUser);
 
   const { data: event, isLoading, isError } = useGetEventByIdQuery(id!);
-  console.log("=== DIAGNOSTIC ===");
-  console.log("ID from URL:", id);
-  console.log("Is Loading:", isLoading);
-  console.log("Is Error:", isError);
-  console.log("Raw Error Object:", isError);
-  console.log("Fetched Data:", event);
   const [deleteEvent] = useDeleteEventMutation();
   const [joinEvent, { isLoading: isJoining }] = useJoinEventMutation();
   const [leaveEvent, { isLoading: isLeaving }] = useLeaveEventMutation();
@@ -38,8 +32,10 @@ export const EventDetailsPage = () => {
   const isFull = event.capacity
     ? event._count.participants >= event.capacity
     : false;
-  const isJoined = event.isJoined;
+  const isJoined = !!event.isJoined;
   const date = new Date(event.date);
+
+  console.log("Is isJoined:", event.isJoined);
 
   const handleDelete = async () => {
     if (!confirm("Delete this event?")) return;
@@ -58,7 +54,6 @@ export const EventDetailsPage = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div className="bg-white border border-gray-200 rounded-2xl p-6 md:p-10 shadow-sm">
-        {/* Шапка події: Назва та Кнопки керування для Організатора */}
         <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
           <div className="space-y-2">
             <h2 className="text-3xl font-extrabold text-gray-900 leading-tight">
@@ -101,12 +96,10 @@ export const EventDetailsPage = () => {
           )}
         </div>
 
-        {/* Опис події */}
         <p className="text-gray-600 text-lg mb-8 whitespace-pre-line">
           {event.description}
         </p>
 
-        {/* Дані: Дата та Локація */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-8 border-b">
           <div className="space-y-1">
             <span className="text-sm text-gray-400 uppercase font-bold tracking-wider">
@@ -130,7 +123,6 @@ export const EventDetailsPage = () => {
           </div>
         </div>
 
-        {/* Кнопка дії для ЗВИЧАЙНОГО користувача (Гістя) */}
         {!isOrganizer && (
           <div className="py-6 border-b">
             <button
@@ -155,7 +147,6 @@ export const EventDetailsPage = () => {
           </div>
         )}
 
-        {/* Список учасників (Захищений через `?.`) */}
         <div className="pt-8">
           <h4 className="text-xl font-bold mb-4 text-gray-900">
             Participants ({event._count.participants}

@@ -72,18 +72,12 @@ export class EventsService {
 
     if (!event) throw new NotFoundException('Event not found');
 
-    if (event.visibility === 'PRIVATE') {
-      const isAuthor = event.authorId === currentUserId;
-      const isParticipant = event.participants.some(
-        (p) => p.id === currentUserId,
-      );
-
-      if (!isAuthor && !isParticipant) {
-        throw new ForbiddenException('This is a private event');
-      }
-    }
-
-    return event;
+    return {
+      ...event,
+      isJoined: currentUserId
+        ? event.participants.some((p) => p.id === currentUserId)
+        : false,
+    };
   }
 
   async joinEvent(eventId: string, userId: string) {
@@ -119,15 +113,24 @@ export class EventsService {
   }
 
   async findMyCalendar(userId: string) {
-    return this.prisma.event.findMany({
+    const events = await this.prisma.event.findMany({
       where: {
-        OR: [{ authorId: userId }, { participants: { some: { id: userId } } }],
+        OR: [
+          { authorId: userId },
+          { participants: { some: { id: userId } } }
+        ],
       },
       include: {
-        author: { select: { email: true } },
+        author: { select: { id: true, email: true, displayName: true } },
         _count: { select: { participants: true } },
       },
     });
+
+    return events.map((event) => ({
+      ...event,
+      isJoined: true,
+      isOrganizer: event.authorId === userId,
+    }));
   }
 
   async remove(id: string, userId: string) {

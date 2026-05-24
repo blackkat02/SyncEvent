@@ -32,22 +32,33 @@ const baseQueryWithReauth: BaseQueryFn<
   if (result.error && result.error.status === 401) {
     console.warn('Access token expired. Attempting to refresh...');
 
-    const refreshResult = await baseQuery(
-      { url: '/auth/refresh', method: 'POST' },
-      api,
-      extraOptions
-    );
+    const state = api.getState() as { auth: { refreshToken: string | null } };
+    const currentRefreshToken = state.auth.refreshToken;
 
-    if (refreshResult.data) {
-      console.log('Token refreshed successfully!');
-      const newAuthData = (refreshResult.data as ApiWrapper<AuthResponse>).data;
+    if (currentRefreshToken) {
+      const refreshResult = await baseQuery(
+        {
+          url: '/auth/refresh',
+          method: 'POST',
+          body: { refreshToken: currentRefreshToken }
+        },
+        api,
+        extraOptions
+      );
 
-      api.dispatch(setCredentials(newAuthData));
+      if (refreshResult.data) {
+        console.log('Token refreshed successfully!');
+        const newAuthData = (refreshResult.data as ApiWrapper<AuthResponse>).data;
 
-      result = await baseQuery(args, api, extraOptions);
+        api.dispatch(setCredentials(newAuthData));
+
+        result = await baseQuery(args, api, extraOptions);
+      } else {
+        console.error('Refresh token invalid on server. Logging out...');
+        api.dispatch(logout());
+      }
     } else {
-
-      console.error('Refresh token invalid. Logging out...');
+      console.warn('No refresh token found in state. Logging out...');
       api.dispatch(logout());
     }
   }
