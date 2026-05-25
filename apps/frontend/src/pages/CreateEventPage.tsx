@@ -20,7 +20,7 @@ export const CreateEventPage = () => {
     handleSubmit,
     formState: { errors },
   } = useForm<EventFormState>({
-    resolver: yupResolver(createEventSchema) as any,
+    resolver: yupResolver(createEventSchema) as Resolver<EventFormState>,
     defaultValues: {
       title: "",
       description: "",
