@@ -81,10 +81,10 @@ services:
       context: .
       dockerfile: apps/frontend/Dockerfile
     container_name: sync-event-frontend
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - /app/apps/frontend/node_modules
+    # volumes:
+    #   - .:/app
+    #   - /app/node_modules
+    #   - /app/apps/frontend/node_modules
     ports:
       - "5173:5173"
     environment:

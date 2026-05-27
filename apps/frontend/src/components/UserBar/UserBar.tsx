@@ -26,7 +26,7 @@ export const UserBar: React.FC = () => {
         setCredentials({
           user,
           accessToken: localStorage.getItem("accessToken") ?? "",
-          refreshToken: localStorage.getItem("refreshToken") ?? "",
+          // refreshToken: localStorage.getItem("refreshToken") ?? "",
         }),
       );
     }

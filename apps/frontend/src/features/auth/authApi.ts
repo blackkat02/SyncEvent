@@ -1,7 +1,8 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import type { LoginDto, RegisterDto, AuthResponse, UserProfile } from '@syncevent/shared';
-import { logout, setCredentials } from './authSlice'; // Переконайся, що у тебе є ці екшени в authSlice
+import { logout, setCredentials, updateAccessToken } from './authSlice';
+import type { RootState } from '../../store/store'
 
 interface ApiWrapper<T> {
   success: boolean;
@@ -11,11 +12,11 @@ interface ApiWrapper<T> {
 
 const baseQuery = fetchBaseQuery({
   baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+  credentials: 'include', // ← додайте це!
   prepareHeaders: (headers, { getState }) => {
-    const state = getState() as { auth: { accessToken: string | null } };
-    const token = state.auth.accessToken;
+    const token = (getState() as RootState).auth.accessToken;
     if (token) {
-      headers.set('Authorization', `Bearer ${token}`);
+      headers.set('authorization', `Bearer ${token}`);
     }
     return headers;
   },
@@ -30,35 +31,37 @@ const baseQueryWithReauth: BaseQueryFn<
   let result = await baseQuery(args, api, extraOptions);
 
   if (result.error && result.error.status === 401) {
-    console.warn('Access token expired. Attempting to refresh...');
+    console.warn('⚠️ Access token expired. Attempting to refresh...');
 
-    const state = api.getState() as { auth: { refreshToken: string | null } };
-    const currentRefreshToken = state.auth.refreshToken;
+    try {
+      const response = await fetch('http://localhost:3000/api/auth/refresh', {
+        method: 'POST',
+        credentials: 'include',
+      });
 
-    if (currentRefreshToken) {
-      const refreshResult = await baseQuery(
-        {
-          url: '/auth/refresh',
-          method: 'POST',
-          body: { refreshToken: currentRefreshToken }
-        },
-        api,
-        extraOptions
-      );
+      if (response.ok) {
+        const jsonResponse = await response.json()
+        const { accessToken } = jsonResponse.data
 
-      if (refreshResult.data) {
-        console.log('Token refreshed successfully!');
-        const newAuthData = (refreshResult.data as ApiWrapper<AuthResponse>).data;
+        api.dispatch(updateAccessToken({ accessToken }))
 
-        api.dispatch(setCredentials(newAuthData));
+        // Додаємо токен напряму в заголовок повторного запиту
+        const reauthedArgs = typeof args === 'string'
+          ? { url: args, headers: { authorization: `Bearer ${accessToken}` } }
+          : {
+            ...args,
+            headers: {
+              ...(args.headers || {}),
+              authorization: `Bearer ${accessToken}`,
+            },
+          }
 
-        result = await baseQuery(args, api, extraOptions);
+        result = await baseQuery(reauthedArgs, api, extraOptions)
       } else {
-        console.error('Refresh token invalid on server. Logging out...');
-        api.dispatch(logout());
+        api.dispatch(logout())
       }
-    } else {
-      console.warn('No refresh token found in state. Logging out...');
+    } catch (fetchError) {
+      console.error('🚨 Network error during token refresh:', fetchError);
       api.dispatch(logout());
     }
   }
