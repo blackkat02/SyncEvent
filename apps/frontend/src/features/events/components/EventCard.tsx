@@ -6,7 +6,7 @@ interface EventCardProps {
   currentUserId?: string;
   onJoin: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onLeave: (e: React.MouseEvent<HTMLButtonElement>) => void;
-  onDelete: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  // onDelete: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 export const EventCard = ({
@@ -14,7 +14,7 @@ export const EventCard = ({
   currentUserId,
   onJoin,
   onLeave,
-  onDelete,
+  // onDelete,
 }: EventCardProps) => {
   const navigate = useNavigate();
 
@@ -84,7 +84,7 @@ export const EventCard = ({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              navigate(`/events/${event.id}/edit`);
+              navigate(`/events/create/${event.id}`);
               console.log("Edit clicked");
             }}
             className="text-gray-500 hover:text-blue-600 text-xs px-3 py-1.5 rounded-lg border border-gray-200 transition-colors"

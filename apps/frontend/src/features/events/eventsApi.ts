@@ -44,8 +44,16 @@ export const eventsApi = createApi({
     }),
 
     updateEvent: builder.mutation<EventResponse, { id: string; body: UpdateEventInput }>({
-      query: ({ id, body }) => ({ url: `/events/${id}`, method: 'PATCH', body }),
-      invalidatesTags: (_result, _error, { id }) => ['Event', { type: 'Event', id }],
+      query: ({ id, body }) => ({
+        url: `/events/${id}`,
+        method: 'PATCH',
+        body
+      }),
+      // ✅ Наводимо лад із тегами:
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: 'Event', id: 'LIST' }, // Змусить оновитися тільки списки івентів
+        { type: 'Event', id }          // Змусить оновитися сторінку деталей саме ЦЬОГО івенту
+      ],
     }),
 
     deleteEvent: builder.mutation<void, string>({
