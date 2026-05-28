@@ -61,7 +61,6 @@ export const CreateEventPage = () => {
       const combinedDate = new Date(`${values.dateStr}T${values.timeStr}`);
 
       if (isEditMode && id) {
-        // 🔹 Логіка РЕДАГУВАННЯ: структура строго під ({ id, body })
         const body: UpdateEventInput = {
           title: values.title,
           location: values.location,
@@ -73,13 +72,10 @@ export const CreateEventPage = () => {
           timeStr: values.timeStr,
         };
 
-        // Викликаємо мутацію PATCH
         await updateEvent({ id, body }).unwrap();
 
-        // 🚀 Повертаємо користувача на сторінку деталей, використовуючи id з useParams
         navigate(`/events/${id}`);
       } else {
-        // 🔸 Логіка СТВОРЕННЯ: структура строго під CreateEventInput
         const payload: CreateEventRequest = {
           title: values.title,
           location: values.location,
@@ -96,26 +92,6 @@ export const CreateEventPage = () => {
       console.error("Failed to save event:", error);
     }
   };
-
-  // const onSubmit: SubmitHandler<EventFormState> = async (values) => {
-  //   try {
-  //     const combinedDate = new Date(`${values.dateStr}T${values.timeStr}`);
-
-  //     const payload: CreateEventRequest = {
-  //       title: values.title,
-  //       location: values.location,
-  //       visibility: values.visibility as EventVisibility,
-  //       description: values.description ?? null,
-  //       capacity: values.capacity ? Number(values.capacity) : null,
-  //       date: combinedDate.toISOString(),
-  //     };
-
-  //     await createEvent(payload as any).unwrap();
-  //     navigate("/my-events");
-  //   } catch (error) {
-  //     console.error("Failed to create event:", error);
-  //   }
-  // };
 
   useEffect(() => {
     if (isEditMode && eventData) {

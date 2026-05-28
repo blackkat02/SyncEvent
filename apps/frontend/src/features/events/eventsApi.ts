@@ -49,10 +49,9 @@ export const eventsApi = createApi({
         method: 'PATCH',
         body
       }),
-      // ✅ Наводимо лад із тегами:
       invalidatesTags: (_result, _error, { id }) => [
-        { type: 'Event', id: 'LIST' }, // Змусить оновитися тільки списки івентів
-        { type: 'Event', id }          // Змусить оновитися сторінку деталей саме ЦЬОГО івенту
+        { type: 'Event', id: 'LIST' },
+        { type: 'Event', id }
       ],
     }),
 
