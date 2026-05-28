@@ -1,24 +1,40 @@
 import { useForm } from "react-hook-form";
 import type { Resolver, SubmitHandler } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
-import { useNavigate } from "react-router-dom";
-import { useCreateEventMutation } from "../features/events/eventsApi";
+import { useNavigate, useParams } from "react-router-dom";
+import {
+  useCreateEventMutation,
+  useGetEventByIdQuery,
+  useUpdateEventMutation,
+} from "../features/events/eventsApi";
 import { Calendar, Clock, MapPin, Users, Globe, ArrowLeft } from "lucide-react";
 import { createEventSchema, EventVisibility } from "@syncevent/shared";
-import type { CreateEventRequest } from "@syncevent/shared";
+import type { CreateEventRequest, UpdateEventInput } from "@syncevent/shared";
 import { useEffect } from "react";
 import * as yup from "yup";
 
 type EventFormState = yup.InferType<typeof createEventSchema>;
 
 export const CreateEventPage = () => {
+  const { id } = useParams<{ id: string }>();
+  const isEditMode = Boolean(id);
+
   const navigate = useNavigate();
-  const [createEvent, { isLoading }] = useCreateEventMutation();
+  const [createEvent, { isLoading: isCreating }] = useCreateEventMutation();
+  const [updateEvent, { isLoading: isUpdating }] = useUpdateEventMutation();
+
+  const { data: eventData, isLoading: isLoadingEvent } = useGetEventByIdQuery(
+    id!,
+    {
+      skip: !isEditMode,
+    },
+  );
 
   const {
     register,
     handleSubmit,
     formState: { errors },
+    reset,
   } = useForm<EventFormState>({
     resolver: yupResolver(createEventSchema) as Resolver<EventFormState>,
     defaultValues: {
@@ -33,6 +49,7 @@ export const CreateEventPage = () => {
     },
   });
 
+  // тимчасово для тестів
   useEffect(() => {
     if (Object.keys(errors).length > 0) {
       console.warn("⚠️ Валідація не пройшла:", errors);
@@ -60,10 +77,23 @@ export const CreateEventPage = () => {
   };
 
   useEffect(() => {
-    if (Object.keys(errors).length > 0) {
-      console.warn("⚠️ Валідація не пройшла! Список помилок:", errors);
+    if (isEditMode && eventData) {
+      const eventDate = new Date(eventData.date);
+      const dateStr = eventDate.toISOString().split("T")[0];
+      const timeStr = eventDate.toTimeString().split(" ")[0].substring(0, 5);
+
+      reset({
+        title: eventData.title,
+        description: eventData.description,
+        location: eventData.location,
+        capacity: eventData.capacity,
+        visibility: eventData.visibility,
+        dateStr,
+        timeStr,
+        date: eventDate,
+      });
     }
-  }, [errors]);
+  }, [eventData, isEditMode, reset]);
 
   return (
     <div className="max-w-2xl mx-auto bg-white p-8 rounded-2xl border shadow-sm">
@@ -75,9 +105,13 @@ export const CreateEventPage = () => {
         <ArrowLeft size={16} /> Back to Calendar
       </button>
 
-      <h2 className="text-2xl font-extrabold mb-2">Create New Event</h2>
+      <h2 className="text-2xl font-extrabold mb-2">
+        {isEditMode ? "Edit Event" : "Create New Event"}
+      </h2>
       <p className="text-gray-500 mb-8">
-        Fill in the details to create an amazing event
+        {isEditMode
+          ? "Modify the details of your event"
+          : "Fill in the details to create an amazing event"}
       </p>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
@@ -220,10 +254,14 @@ export const CreateEventPage = () => {
           </button>
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isCreating || isUpdating}
             className="flex-1 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-sm disabled:bg-blue-400 disabled:cursor-not-allowed"
           >
-            {isLoading ? "Creating..." : "Create Event"}
+            {isCreating || isUpdating
+              ? "Saving..."
+              : isEditMode
+                ? "Update Event"
+                : "Create Event"}
           </button>
         </div>
       </form>

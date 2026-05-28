@@ -142,28 +142,31 @@ export class EventsService {
   }
 
   async update(id: string, userId: string, dto: UpdateEventDto) {
+    // 1. Шукаємо івент та перевіряємо авторство через твій findOne
     const event = await this.findOne(id, userId);
 
     if (event.authorId !== userId) {
       throw new ForbiddenException('You can only edit your own events');
     }
 
-    const { date: dtoDate, ...data } = dto;
-
     let updatedDate: Date | undefined;
 
-    if (dtoDate) {
-      updatedDate = new Date(dtoDate);
+    if (dto.date) {
+      updatedDate = new Date(dto.date);
       if (isNaN(updatedDate.getTime()) || updatedDate < new Date()) {
-        throw new BadRequestException('Invalid date');
+        throw new BadRequestException('Invalid date. Date cannot be in the past.');
       }
     }
 
     return await this.prisma.event.update({
       where: { id },
       data: {
-        ...data,
-        ...(updatedDate ? { date: updatedDate } : {}),
+        title: dto.title,
+        description: dto.description,
+        location: dto.location,
+        capacity: dto.capacity,
+        visibility: dto.visibility,
+        date: updatedDate ? updatedDate.toISOString() : undefined,
       },
     });
   }
