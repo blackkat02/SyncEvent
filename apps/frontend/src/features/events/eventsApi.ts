@@ -44,8 +44,15 @@ export const eventsApi = createApi({
     }),
 
     updateEvent: builder.mutation<EventResponse, { id: string; body: UpdateEventInput }>({
-      query: ({ id, body }) => ({ url: `/events/${id}`, method: 'PATCH', body }),
-      invalidatesTags: (_result, _error, { id }) => ['Event', { type: 'Event', id }],
+      query: ({ id, body }) => ({
+        url: `/events/${id}`,
+        method: 'PATCH',
+        body
+      }),
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: 'Event', id: 'LIST' },
+        { type: 'Event', id }
+      ],
     }),
 
     deleteEvent: builder.mutation<void, string>({

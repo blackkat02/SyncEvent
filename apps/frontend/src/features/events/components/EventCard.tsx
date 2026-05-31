@@ -6,6 +6,7 @@ interface EventCardProps {
   currentUserId?: string;
   onJoin: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onLeave: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  // onDelete: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 export const EventCard = ({
@@ -13,6 +14,7 @@ export const EventCard = ({
   currentUserId,
   onJoin,
   onLeave,
+  // onDelete,
 }: EventCardProps) => {
   const navigate = useNavigate();
 
@@ -21,7 +23,6 @@ export const EventCard = ({
     ? event._count.participants >= event.capacity
     : false;
 
-  // Форматуємо дату та час безпечно
   const eventDate = new Date(event.date).toLocaleDateString();
   const eventTime = new Date(event.date).toLocaleTimeString([], {
     hour: "2-digit",
@@ -33,7 +34,6 @@ export const EventCard = ({
       className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer flex flex-col h-full"
       onClick={() => navigate(`/events/${event.id}`)}
     >
-      {/* Верхня частина: Заголовок та Бейджі статусів */}
       <div className="flex justify-between items-start mb-4">
         <h3 className="text-lg font-bold text-gray-900 leading-tight">
           {event.title}
@@ -60,12 +60,10 @@ export const EventCard = ({
         </div>
       </div>
 
-      {/* Опис події */}
       <p className="text-gray-500 text-sm mb-6 line-clamp-3 grow">
         {event.description}
       </p>
 
-      {/* Контентна частина: Дата, Локація, Ліміти */}
       <div className="space-y-2 mb-6">
         <div className="flex items-center text-sm text-gray-600 gap-2">
           <span className="font-medium">{eventDate}</span>
@@ -81,13 +79,12 @@ export const EventCard = ({
         </div>
       </div>
 
-      {/* Блок керування для Організатора */}
       {isOrganizer && (
         <div className="flex gap-2 mb-4">
           <button
             onClick={(e) => {
               e.stopPropagation();
-              // ТУТ в майбутньому буде onEdit?.()
+              navigate(`/events/create/${event.id}`);
               console.log("Edit clicked");
             }}
             className="text-gray-500 hover:text-blue-600 text-xs px-3 py-1.5 rounded-lg border border-gray-200 transition-colors"
@@ -97,7 +94,7 @@ export const EventCard = ({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              // ТУТ в майбутньому буде твій onDelete?.()
+              // ТУТ в майбутньому буде onDelete?.()
               console.log("Delete clicked");
             }}
             className="text-gray-500 hover:text-red-600 text-xs px-3 py-1.5 rounded-lg border border-gray-200 transition-colors"
@@ -107,7 +104,6 @@ export const EventCard = ({
         </div>
       )}
 
-      {/* Головна інтерактивна кнопка (для звичайних користувачів) */}
       {!isOrganizer && (
         <button
           disabled={isFull && !event.isJoined}

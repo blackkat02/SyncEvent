@@ -1,4 +1,3 @@
-// apps/shared/src/schemas/event.schema.ts
 import * as yup from 'yup';
 
 export enum EventVisibility {
@@ -18,10 +17,12 @@ export const createEventSchema = yup.object({
     .optional(),
   visibility: yup.mixed<EventVisibility>().oneOf(Object.values(EventVisibility)).required(),
 
-  // ✅ Додаємо ці поля в схему, щоб InferType автоматично вивів їх для форми
   dateStr: yup.string().required('Date is required'),
   timeStr: yup.string().required('Time is required'),
-  date: yup.mixed().optional(), // залишаємо як опціональний бек-енд маркер
+  date: yup.mixed().optional(),
 });
 
+export const updateEventSchema = createEventSchema.clone();
+
 export type CreateEventInput = yup.InferType<typeof createEventSchema>;
+export type UpdateEventInput = yup.InferType<typeof updateEventSchema>;

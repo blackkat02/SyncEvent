@@ -15,6 +15,7 @@ export const router = createBrowserRouter([
       { index: true, element: <EventsPage /> },
       { path: "events/:id", element: <EventDetailsPage /> },
       { path: "events/create", element: <CreateEventPage /> },
+      { path: "events/:id/edit", element: <CreateEventPage /> },
       { path: "my-events", element: <MyEventsPage /> },
     ],
   },

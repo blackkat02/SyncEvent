@@ -1,7 +1,7 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query';
 import type { LoginDto, RegisterDto, AuthResponse, UserProfile } from '@syncevent/shared';
-import { logout, setCredentials, updateAccessToken } from './authSlice';
+import { logout, updateAccessToken } from './authSlice';
 import type { RootState } from '../../store/store'
 
 interface ApiWrapper<T> {
@@ -12,7 +12,7 @@ interface ApiWrapper<T> {
 
 const baseQuery = fetchBaseQuery({
   baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
-  credentials: 'include', // ← додайте це!
+  credentials: 'include',
   prepareHeaders: (headers, { getState }) => {
     const token = (getState() as RootState).auth.accessToken;
     if (token) {
@@ -45,7 +45,6 @@ const baseQueryWithReauth: BaseQueryFn<
 
         api.dispatch(updateAccessToken({ accessToken }))
 
-        // Додаємо токен напряму в заголовок повторного запиту
         const reauthedArgs = typeof args === 'string'
           ? { url: args, headers: { authorization: `Bearer ${accessToken}` } }
           : {
