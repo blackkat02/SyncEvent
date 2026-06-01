@@ -18,7 +18,6 @@ export const CalendarHeader = ({
 }: CalendarHeaderProps) => {
   return (
     <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-      {/* Навігація по датах */}
       <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-start">
         <h2 className="text-2xl font-bold text-gray-900 min-w-50">
           {viewMode === "month"
