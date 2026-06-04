@@ -171,7 +171,7 @@ export const MyEventsCalendar = () => {
               >
                 <div>
                   <span
-                    className={`block text-xs font-black ${isToday ? "text-blue-600" : "text-gray-900"}`}
+                    className={`block text-xs font-black ${isToday ? "text-blue-600 border rounded-xl" : "text-gray-900"}`}
                   >
                     {format(day, "d")}
                   </span>

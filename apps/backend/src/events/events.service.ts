@@ -4,10 +4,15 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { Visibility } from '@prisma/client';
 import { CreateEventDto } from './dto/create-event.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UpdateEventDto } from './dto/update-event.dto';
-import { Visibility } from '@prisma/client';
+
+interface PaginationDto {
+  page?: number;
+  limit?: number;
+}
 
 @Injectable()
 export class EventsService {
@@ -40,26 +45,47 @@ export class EventsService {
     });
   }
 
-  async findAll(currentUserId?: string) {
-    const events = await this.prisma.event.findMany({
-      where: currentUserId ? {} : { visibility: Visibility.PUBLIC },
-      include: {
-        author: { select: { id: true, email: true } },
-        _count: { select: { participants: true } },
-        participants: currentUserId
-          ? { where: { id: currentUserId }, select: { id: true } }
-          : false,
-      },
-    });
+  async findAll(currentUserId?: string, pagination?: PaginationDto) {
+    const page = Math.max(1, pagination?.page || 1);
+    const limit = Math.max(1, Math.min(pagination?.limit || 10, 100));
+    const skip = (page - 1) * limit;
 
-    return events.map((event) => ({
+    const whereCondition = currentUserId ? {} : { visibility: Visibility.PUBLIC };
+
+    const [events, totalItems] = await this.prisma.$transaction([
+      this.prisma.event.findMany({
+        where: whereCondition,
+        skip: skip,
+        take: limit,
+        include: {
+          author: { select: { id: true, email: true } },
+          _count: { select: { participants: true } },
+          participants: currentUserId
+            ? { where: { id: currentUserId }, select: { id: true } }
+            : false,
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.event.count({ where: whereCondition }),
+    ]);
+
+    const mappedEvents = events.map((event) => ({
       ...event,
-      isJoined:
-        Array.isArray(event.participants) && event.participants.length > 0,
+      isJoined: Array.isArray(event.participants) && event.participants.length > 0,
       participants: undefined,
     }));
-  }
 
+    return {
+      data: mappedEvents,
+      meta: {
+        totalItems,
+        itemCount: mappedEvents.length,
+        itemsPerPage: limit,
+        totalPages: Math.ceil(totalItems / limit),
+        currentPage: page,
+      },
+    };
+  }
   async findOne(id: string, currentUserId?: string) {
     const event = await this.prisma.event.findUnique({
       where: { id },
@@ -142,7 +168,6 @@ export class EventsService {
   }
 
   async update(id: string, userId: string, dto: UpdateEventDto) {
-    // 1. Шукаємо івент та перевіряємо авторство через твій findOne
     const event = await this.findOne(id, userId);
 
     if (event.authorId !== userId) {
