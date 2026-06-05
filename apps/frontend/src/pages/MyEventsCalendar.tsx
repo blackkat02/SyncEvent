@@ -108,26 +108,24 @@ export const MyEventsCalendar = () => {
             const dateKey = format(day, "yyyy-MM-dd");
             const dayEvents = groupedEvents[dateKey] || [];
             const isCurrentMonth = day.getMonth() === currentDate.getMonth();
-            // 1️⃣ Визначаємо, чи цей день є сьогоднішнім
             const isToday = isSameDay(day, new Date());
 
             return (
               <div
                 key={idx}
-                className={`border-r border-b border-gray-200 min-h-27.5 p-2 flex flex-col justify-between transition-colors ${
+                className={`border-r border-b min-h-27.5 p-2 flex flex-col justify-between transition-all ${
                   !isCurrentMonth
-                    ? "bg-gray-50/50 opacity-40"
+                    ? "bg-gray-50/50 opacity-40 border-gray-200"
                     : isToday
-                      ? "bg-blue-50/20" // Трохи приглушимо фон, щоб не різало око
-                      : "hover:bg-gray-50/30"
+                      ? "bg-blue-50/20 border-blue-500 ring-1 ring-blue-500 ring-inset" // ✅ Додали синій бордюр та внутрішнє кільце
+                      : "hover:bg-gray-50/30 border-gray-200"
                 }`}
               >
-                {/* 🔑 ФІКС: Огортаємо span у контейнер з фіксованою висотою h-5, щоб сітка не стрибала */}
-                <div className="flex justify-start h-5 items-center">
+                <div className="flex justify-start h-6 items-center">
                   <span
                     className={`text-xs font-bold flex items-center justify-center transition-all ${
                       isToday
-                        ? "text-blue-600 bg-blue-100 w-5 h-5 rounded-full"
+                        ? "text-white bg-blue-600 w-5 h-5 rounded-full shadow-sm"
                         : isCurrentMonth
                           ? "text-gray-700"
                           : "text-gray-400"
@@ -137,10 +135,16 @@ export const MyEventsCalendar = () => {
                   </span>
                 </div>
 
-                {/* Список івентів дня залишається без змін */}
                 <div className="space-y-1 mt-2 flex-1 flex flex-col justify-end overflow-hidden">
                   {dayEvents.map((event) => (
-                    <div key={event.id} /* ... твоя верстка івенту ... */>
+                    <div
+                      key={event.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/events/${event.id}`);
+                      }}
+                      className="bg-blue-50 text-blue-700 border border-blue-100 rounded-md p-1 text-[10px] font-bold truncate cursor-pointer hover:bg-blue-100 transition-colors"
+                    >
                       {format(new Date(event.date), "HH:mm")} - {event.title}
                     </div>
                   ))}
@@ -150,7 +154,6 @@ export const MyEventsCalendar = () => {
           })}
         </div>
       ) : (
-        /* ================= РЕЖИМ ТИЖНЯ ================= */
         <div className="grid grid-cols-7 gap-3">
           {daysGrid.map((day, idx) => {
             const dateKey = format(day, "yyyy-MM-dd");
@@ -162,20 +165,18 @@ export const MyEventsCalendar = () => {
                 key={idx}
                 className={`bg-white border rounded-xl p-4 min-h-45 flex flex-col justify-between shadow-sm transition-all ${
                   isToday
-                    ? "border-blue-500 ring-1 ring-blue-500" // 4️⃣ ОСЬ ТУТ викликається синій бордер для поточного дня тижня
+                    ? "border-blue-500 ring-1 ring-blue-500"
                     : "border-gray-200"
                 }`}
               >
-                {/* Заголовок дня тижня */}
                 <div>
                   <span
-                    className={`block text-xs font-black ${isToday ? "text-blue-600" : "text-gray-900"}`}
+                    className={`block text-xs font-black ${isToday ? "text-blue-600 border rounded-xl" : "text-gray-900"}`}
                   >
                     {format(day, "d")}
                   </span>
                 </div>
 
-                {/* 5️⃣ ВИПРАВЛЕНО: Нормальний вивід картки івенту на тижні */}
                 <div className="flex-1 flex flex-col justify-end mt-2 space-y-1.5 overflow-hidden">
                   {dayEvents.length > 0 ? (
                     dayEvents.map((event) => (
