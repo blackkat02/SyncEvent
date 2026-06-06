@@ -27,7 +27,6 @@ export const RegisterForm = () => {
         setCredentials({
           user: result.user,
           accessToken: result.accessToken,
-          refreshToken: result.refreshToken,
         }),
       );
       navigate("/");

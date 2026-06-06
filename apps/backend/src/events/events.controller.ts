@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import {
   ApiOperation,
@@ -20,12 +21,12 @@ import { UpdateEventDto } from './dto/update-event.dto';
 import { AuthGuard } from '@nestjs/passport';
 import { OptionalAuthGuard } from '../common/guards/optional-auth.guard';
 import { GetUser } from '../common/decorators/get-user.decorator';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 @ApiTags('Events')
 @ApiBearerAuth()
 @Controller('events')
 export class EventsController {
-  // eslint-disable-next-line prettier/prettier
   constructor(private readonly eventsService: EventsService) { }
 
   @Post()
@@ -47,8 +48,11 @@ export class EventsController {
   @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: 'Get all public events' })
   @ApiResponse({ status: 200, description: 'Return list of public events.' })
-  async findAll(@GetUser('id') userId?: string) {
-    return await this.eventsService.findAll(userId);
+  async findAll(
+    @GetUser('id') userId: string | undefined,
+    @Query() paginationDto: PaginationDto,
+  ) {
+    return await this.eventsService.findAll(userId, paginationDto);
   }
 
   @Get('me/calendar')
