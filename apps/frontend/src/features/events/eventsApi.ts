@@ -1,6 +1,7 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 import type { EventResponse, EventDetailResponse, CreateEventInput, UpdateEventInput } from '@syncevent/shared'
 import type { RootState } from '../../store/store'
+import type { PaginatedResponse, PaginationQueryParams } from '@syncevent/shared';
 
 interface ApiWrapper<T> {
   success: boolean
@@ -20,9 +21,17 @@ export const eventsApi = createApi({
   }),
   tagTypes: ['Event', 'MyEvents'],
   endpoints: (builder) => ({
-    getEvents: builder.query<EventResponse[], void>({
-      query: () => '/events',
-      transformResponse: (response: ApiWrapper<EventResponse[]>) => response.data,
+    getEvents: builder.query<PaginatedResponse<EventResponse>, PaginationQueryParams | void>({
+      query: (params) => ({
+        url: '/events',
+        method: 'GET',
+        params: params || {},
+      }),
+
+      transformResponse: (response: ApiWrapper<PaginatedResponse<EventResponse>>) => {
+        return response.data;
+      },
+
       providesTags: ['Event'],
     }),
 

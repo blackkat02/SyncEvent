@@ -8,11 +8,7 @@ import { Visibility } from '@prisma/client';
 import { CreateEventDto } from './dto/create-event.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UpdateEventDto } from './dto/update-event.dto';
-
-interface PaginationDto {
-  page?: number;
-  limit?: number;
-}
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 @Injectable()
 export class EventsService {
@@ -50,7 +46,9 @@ export class EventsService {
     const limit = Math.max(1, Math.min(pagination?.limit || 10, 100));
     const skip = (page - 1) * limit;
 
-    const whereCondition = currentUserId ? {} : { visibility: Visibility.PUBLIC };
+    const whereCondition = currentUserId
+      ? {}
+      : { visibility: Visibility.PUBLIC };
 
     const [events, totalItems] = await this.prisma.$transaction([
       this.prisma.event.findMany({
@@ -71,7 +69,8 @@ export class EventsService {
 
     const mappedEvents = events.map((event) => ({
       ...event,
-      isJoined: Array.isArray(event.participants) && event.participants.length > 0,
+      isJoined:
+        Array.isArray(event.participants) && event.participants.length > 0,
       participants: undefined,
     }));
 
@@ -141,10 +140,7 @@ export class EventsService {
   async findMyCalendar(userId: string) {
     const events = await this.prisma.event.findMany({
       where: {
-        OR: [
-          { authorId: userId },
-          { participants: { some: { id: userId } } }
-        ],
+        OR: [{ authorId: userId }, { participants: { some: { id: userId } } }],
       },
       include: {
         author: { select: { id: true, email: true, displayName: true } },
@@ -179,7 +175,9 @@ export class EventsService {
     if (dto.date) {
       updatedDate = new Date(dto.date);
       if (isNaN(updatedDate.getTime()) || updatedDate < new Date()) {
-        throw new BadRequestException('Invalid date. Date cannot be in the past.');
+        throw new BadRequestException(
+          'Invalid date. Date cannot be in the past.',
+        );
       }
     }
 

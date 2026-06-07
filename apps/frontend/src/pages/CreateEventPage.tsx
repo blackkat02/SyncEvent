@@ -23,12 +23,9 @@ export const CreateEventPage = () => {
   const [createEvent, { isLoading: isCreating }] = useCreateEventMutation();
   const [updateEvent, { isLoading: isUpdating }] = useUpdateEventMutation();
 
-  const { data: eventData, isLoading: isLoadingEvent } = useGetEventByIdQuery(
-    id!,
-    {
-      skip: !isEditMode,
-    },
-  );
+  const { data: eventData } = useGetEventByIdQuery(id!, {
+    skip: !isEditMode,
+  });
 
   const {
     register,
