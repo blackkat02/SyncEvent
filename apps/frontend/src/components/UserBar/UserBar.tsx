@@ -26,7 +26,6 @@ export const UserBar: React.FC = () => {
         setCredentials({
           user,
           accessToken: localStorage.getItem("accessToken") ?? "",
-          // refreshToken: localStorage.getItem("refreshToken") ?? "",
         }),
       );
     }
@@ -59,7 +58,7 @@ export const UserBar: React.FC = () => {
           className="w-full h-full object-cover"
         />
       </div>
-      <span className="text-sm font-medium text-gray-700">
+      <span className="text-sm font-medium text-gray-700 hidden md:inline">
         {displayUser.displayName ?? displayUser.email}
       </span>
       <button
