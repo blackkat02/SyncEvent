@@ -32,7 +32,13 @@ export const eventsApi = createApi({
         return response.data;
       },
 
-      providesTags: ['Event'],
+      providesTags: (result) =>
+        result
+          ? [
+            { type: 'Event', id: 'LIST' },
+            ...result.data.map(({ id }) => ({ type: 'Event' as const, id })),
+          ]
+          : [{ type: 'Event', id: 'LIST' }],
     }),
 
     getEventById: builder.query<EventDetailResponse, string>({
