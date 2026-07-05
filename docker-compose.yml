@@ -1,33 +1,22 @@
 services:
-  db:
-    image: postgres:15-alpine
-    container_name: sync-event-db
+  db-mysql:
+    image: mysql:8.0
+    container_name: sync-event-db-mysql
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: syncevent_db
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+      MYSQL_DATABASE: syncevent_db
     ports:
-      - "5432:5432"
+      - "3307:3306"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d syncevent_db"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "user", "-ppassword"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 20s
     volumes:
-      - pgdata:/var/lib/postgresql/data
-    networks:
-      - sync-network
-
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: sync-event-pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
-    ports:
-      - "5050:80"
-    depends_on:
-      - db
+      - mysqldata:/var/lib/mysql
     networks:
       - sync-network
 
@@ -36,36 +25,37 @@ services:
       context: .
       dockerfile: apps/backend/Dockerfile
     container_name: sync-event-init
-    tty: true
     environment:
-      DATABASE_URL: "postgresql://user:password@db:5432/syncevent_db?schema=public"
-    depends_on:
-      db:
-        condition: service_healthy
+      DATABASE_URL: ${DATABASE_URL}
+      DB_PROVIDER: ${DB_PROVIDER}
     networks:
       - sync-network
+    depends_on:
+      db-mysql:
+        condition: service_healthy
     working_dir: /app/apps/backend
     command: >
-      sh -c "npx prisma migrate deploy && 
-             DATABASE_URL=postgresql://user:password@db:5432/syncevent_db?schema=public npx ts-node prisma/seed.ts"
+      sh -c "
+          node /app/apps/backend/scripts/check-db.js &&
+          pnpm --filter backend exec prisma generate --schema=/app/apps/backend/prisma/schema.prisma &&
+          pnpm --filter backend exec prisma db push --schema=/app/apps/backend/prisma/schema.prisma &&
+          pnpm --filter backend exec ts-node /app/apps/backend/prisma/seed.ts
+        "
 
   backend:
     build:
       context: .
       dockerfile: apps/backend/Dockerfile
     container_name: sync-event-backend
-    # volumes:
-    #   - .:/app
-    #   - /app/node_modules
-    #   - /app/apps/backend/node_modules
     environment:
-      DATABASE_URL: "postgresql://user:password@db:5432/syncevent_db?schema=public"
+      DATABASE_URL: ${DATABASE_URL}
+      DB_PROVIDER: ${DB_PROVIDER}
       PORT: 3000
-      JWT_SECRET: "docker_dev_access_key_change_in_production"
-      JWT_REFRESH_SECRET: "docker_dev_refresh_key_change_in_production"
-      JWT_ACCESS_EXPIRES_IN: "15m"
-      JWT_REFRESH_EXPIRES_IN: "7d"
-      NODE_ENV: "development"
+      JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
+      NODE_ENV: development
       CORS_ORIGINS: "http://localhost:5173"
     ports:
       - "3000:3000"
@@ -74,17 +64,17 @@ services:
         condition: service_completed_successfully
     networks:
       - sync-network
-    command: node dist/src/main.js
+    command: >
+      sh -c "
+        node /app/apps/backend/scripts/check-db.js &&
+        node dist/src/main.js
+      "
 
   frontend:
     build:
       context: .
       dockerfile: apps/frontend/Dockerfile
     container_name: sync-event-frontend
-    # volumes:
-    #   - .:/app
-    #   - /app/node_modules
-    #   - /app/apps/frontend/node_modules
     ports:
       - "5173:5173"
     environment:
@@ -99,4 +89,4 @@ networks:
     driver: bridge
 
 volumes:
-  pgdata:
+  mysqldata:
