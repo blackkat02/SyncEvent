@@ -21,6 +21,12 @@ export class EventsService {
     tomorrow.setHours(0, 0, 0, 0);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
+    console.log('=== DATE DEBUG ===');
+    console.log('raw dto.date:', dto.date);
+    console.log('parsed eventDate:', eventDate.toISOString());
+    console.log('server tomorrow:', tomorrow.toISOString());
+    console.log('server TZ offset (min):', new Date().getTimezoneOffset());
+
     if (isNaN(eventDate.getTime()) || eventDate < tomorrow) {
       throw new BadRequestException('Event date must be at least tomorrow');
     }
@@ -67,7 +73,7 @@ export class EventsService {
       this.prisma.event.count({ where: whereCondition }),
     ]);
 
-    const mappedEvents = events.map((event) => ({
+    const mappedEvents = events.map((event: { participants: string | any[]; }) => ({
       ...event,
       isJoined:
         Array.isArray(event.participants) && event.participants.length > 0,
@@ -100,7 +106,7 @@ export class EventsService {
     return {
       ...event,
       isJoined: currentUserId
-        ? event.participants.some((p) => p.id === currentUserId)
+        ? event.participants.some((p: { id: string; }) => p.id === currentUserId)
         : false,
     };
   }
@@ -148,7 +154,7 @@ export class EventsService {
       },
     });
 
-    return events.map((event) => ({
+    return events.map((event: { authorId: string; }) => ({
       ...event,
       isJoined: true,
       isOrganizer: event.authorId === userId,
