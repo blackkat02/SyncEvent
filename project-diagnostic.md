@@ -1,9 +1,10 @@
 # SyncEvent — Project Diagnostic
-Generated: 2026-07-05T11:41:41.467Z
+Generated: 2026-07-08T19:08:20.742Z
 
 ## Project tree
 
 ```
+├── .dockerignore
 ├── .env
 ├── .env.docker
 ├── .env.example
@@ -160,33 +161,14 @@ Generated: 2026-07-05T11:41:41.467Z
 │   └── shared/
 │       ├── package.json
 │       ├── src/
-│       │   ├── index.d.ts
-│       │   ├── index.d.ts.map
-│       │   ├── index.js
 │       │   ├── index.ts
 │       │   ├── schemas/
-│       │   │   ├── auth.schema.d.ts
-│       │   │   ├── auth.schema.d.ts.map
-│       │   │   ├── auth.schema.js
 │       │   │   ├── auth.schema.ts
-│       │   │   ├── event.schema.d.ts
-│       │   │   ├── event.schema.d.ts.map
-│       │   │   ├── event.schema.js
 │       │   │   └── event.schema.ts
 │       │   └── types/
-│       │       ├── api.response.d.ts
-│       │       ├── api.response.d.ts.map
-│       │       ├── api.response.js
 │       │       ├── api.response.ts
-│       │       ├── auth.d.ts
-│       │       ├── auth.d.ts.map
-│       │       ├── auth.js
 │       │       ├── auth.ts
-│       │       ├── event.d.ts
-│       │       ├── event.d.ts.map
-│       │       ├── event.js
 │       │       ├── event.ts
-│       │       ├── pagination.types.js
 │       │       └── pagination.types.ts
 │       ├── tsconfig.json
 │       └── tsup.config.ts
@@ -331,7 +313,8 @@ onlyBuiltDependencies:
     "build": "tsup && tsc --emitDeclarationOnly --noEmit false",
     "lint": "pnpm -r lint",
     "db:generate": "pnpm --filter backend exec prisma generate",
-    "db:studio": "pnpm --filter backend exec prisma studio"
+    "db:studio": "pnpm --filter backend exec prisma studio",
+    "diagnose": "node gather-project-info.mjs"
   },
   "packageManager": "pnpm@10.30.2",
   "devDependencies": {
@@ -401,7 +384,7 @@ FROM node:20-alpine
 RUN npm install -g pnpm
 WORKDIR /app
 
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY tsconfig.base.json ./
 COPY apps/backend/package.json ./apps/backend/
 COPY packages/shared/package.json ./packages/shared/
@@ -416,6 +399,7 @@ RUN cd /app/packages/shared && /app/node_modules/.bin/tsup && /app/node_modules/
 RUN pnpm --filter backend exec prisma generate --schema=/app/apps/backend/prisma/schema.prisma
 
 WORKDIR /app/apps/backend
+
 RUN pnpm run build
 
 EXPOSE 3000
@@ -692,7 +676,7 @@ FROM node:20-alpine
 RUN npm install -g pnpm
 WORKDIR /app
 
-COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY tsconfig.base.json ./
 COPY apps/frontend/package.json ./apps/frontend/
 COPY packages/shared/package.json ./packages/shared/
@@ -706,7 +690,7 @@ RUN cd /app/packages/shared && /app/node_modules/.bin/tsup && /app/node_modules/
 
 WORKDIR /app/apps/frontend
 EXPOSE 5173
-CMD ["pnpm", "run", "dev", "--host"]
+CMD ["pnpm", "--filter", "frontend", "exec", "vite", "--host"]
 ```
 
 ### apps/frontend/package.json
