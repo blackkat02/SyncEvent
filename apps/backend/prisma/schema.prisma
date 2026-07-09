@@ -1,10 +1,10 @@
 generator client {
   provider = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
+  url      = env("DATABASE_URL")
 }
 
 enum Visibility {
@@ -16,17 +16,13 @@ model User {
   id           String   @id @default(cuid())
   email        String   @unique
   password     String
-
-  displayName  String?  
+  displayName  String?
   avatarUrl    String?
-
   refreshToken String?  @db.Text
-  
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
   createdEvents Event[] @relation("CreatedEvents")
-  joinedEvents  Event[] @relation("JoinedEvents") 
+  joinedEvents  Event[] @relation("JoinedEvents")
 }
 
 model Event {
@@ -36,16 +32,12 @@ model Event {
   date         DateTime
   location     String
   capacity     Int?
-
   visibility   Visibility @default(PUBLIC)
-  
   authorId     String
   author       User       @relation("CreatedEvents", fields: [authorId], references: [id])
   participants User[]     @relation("JoinedEvents")
-
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
-
-  @@index([authorId]) 
+  @@index([authorId])
   @@index([visibility])
 }
