@@ -1,5 +1,90 @@
+x-backend-base: &backend-base
+  build:
+    context: .
+    dockerfile: apps/backend/Dockerfile
+  command: ["sh", "/app/apps/backend/scripts/entrypoint.sh"]
+  networks:
+    - sync-network
+
+x-backend-env-common: &backend-env-common
+  PORT: 3000
+  JWT_SECRET: ${JWT_SECRET}
+  JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+  JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN}
+  JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
+  NODE_ENV: development
+  CORS_ORIGINS: "http://localhost:5173"
+
 services:
-  # ---------- MySQL (default, no profile => always runs) ----------
+  # ---------- PostgreSQL (за замовчуванням, без profiles) ----------
+  db-postgres:
+    image: postgres:16-alpine
+    container_name: sync-event-db-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - sync-network
+    profiles: ["postgres"]
+
+  backend-init:
+    <<: *backend-base
+    container_name: sync-event-init
+    environment:
+      <<: *backend-env-common
+      DB_PROVIDER: postgresql
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-postgres:5432/${POSTGRES_DB}?schema=public
+      MODE: init
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+    profiles: ["postgres"]
+
+  backend:
+    <<: *backend-base
+    container_name: sync-event-backend
+    environment:
+      <<: *backend-env-common
+      DB_PROVIDER: postgresql
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-postgres:5432/${POSTGRES_DB}?schema=public
+      MODE: serve
+    ports:
+      - "3000:3000"
+    depends_on:
+      backend-init:
+        condition: service_completed_successfully
+    profiles: ["postgres"]
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: sync-event-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@syncevent.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    networks:
+      - sync-network
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+    profiles: ["postgres"]
+
+  # ---------- MySQL (опційно, --profile mysql) ----------
   db-mysql:
     image: mysql:8.0
     container_name: sync-event-db-mysql
@@ -22,135 +107,35 @@ services:
       - sync-network
     profiles: ["mysql"]
 
-  backend-init:
-    build:
-      context: .
-      dockerfile: apps/backend/Dockerfile
-    container_name: sync-event-init
+  backend-init-mysql:
+    <<: *backend-base
+    container_name: sync-event-init-mysql
     environment:
+      <<: *backend-env-common
       DB_PROVIDER: mysql
       DATABASE_URL: mysql://user:password@db-mysql:3306/syncevent_db
-    networks:
-      - sync-network
+      MODE: init
     depends_on:
       db-mysql:
         condition: service_healthy
-    working_dir: /app/apps/backend
-    command: >
-      sh -c "
-          node /app/apps/backend/scripts/check-db.js &&
-          pnpm --filter backend exec prisma generate --schema=/app/apps/backend/prisma/schema.prisma &&
-          pnpm --filter backend exec prisma db push --schema=/app/apps/backend/prisma/schema.prisma &&
-          pnpm --filter backend exec ts-node /app/apps/backend/prisma/seed.ts
-        "
     profiles: ["mysql"]
 
-  backend:
-    build:
-      context: .
-      dockerfile: apps/backend/Dockerfile
-    container_name: sync-event-backend
+  backend-mysql:
+    <<: *backend-base
+    container_name: sync-event-backend-mysql
     environment:
+      <<: *backend-env-common
       DB_PROVIDER: mysql
       DATABASE_URL: mysql://user:password@db-mysql:3306/syncevent_db
-      PORT: 3000
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN}
-      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
-      NODE_ENV: development
-      CORS_ORIGINS: "http://localhost:5173"
+      MODE: serve
     ports:
       - "3000:3000"
     depends_on:
-      backend-init:
+      backend-init-mysql:
         condition: service_completed_successfully
-    networks:
-      - sync-network
-    command: >
-      sh -c "
-        node /app/apps/backend/scripts/check-db.js &&
-        pnpm --filter backend exec prisma generate --schema=/app/apps/backend/prisma/schema.prisma &&
-        node dist/src/main.js
-      "
     profiles: ["mysql"]
 
-  # ---------- PostgreSQL (opt-in via --profile postgres) ----------
-  db-postgres:
-    image: postgres:16-alpine
-    container_name: sync-event-db-postgres
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-    ports:
-      - "5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    networks:
-      - sync-network
-    profiles: ["postgres"]
-
-  backend-init-postgres:
-    build:
-      context: .
-      dockerfile: apps/backend/Dockerfile
-    container_name: sync-event-init-postgres
-    environment:
-      DB_PROVIDER: postgresql
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-postgres:5432/${POSTGRES_DB}?schema=public
-    networks:
-      - sync-network
-    depends_on:
-      db-postgres:
-        condition: service_healthy
-    working_dir: /app/apps/backend
-    command: >
-      sh -c "
-          node /app/apps/backend/scripts/check-db.js &&
-          pnpm --filter backend exec prisma generate --schema=/app/apps/backend/prisma/schema.prisma &&
-          pnpm --filter backend exec prisma db push --schema=/app/apps/backend/prisma/schema.prisma &&
-          pnpm --filter backend exec ts-node /app/apps/backend/prisma/seed.ts
-        "
-    profiles: ["postgres"]
-
-  backend-postgres:
-    build:
-      context: .
-      dockerfile: apps/backend/Dockerfile
-    container_name: sync-event-backend-postgres
-    environment:
-      DB_PROVIDER: postgresql
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-postgres:5432/${POSTGRES_DB}?schema=public
-      PORT: 3000
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN}
-      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
-      NODE_ENV: development
-      CORS_ORIGINS: "http://localhost:5173"
-    ports:
-      - "3000:3000"
-    depends_on:
-      backend-init-postgres:
-        condition: service_completed_successfully
-    networks:
-      - sync-network
-    command: >
-      sh -c "
-        node /app/apps/backend/scripts/check-db.js &&
-        pnpm --filter backend exec prisma generate --schema=/app/apps/backend/prisma/schema.prisma &&
-        node dist/src/main.js
-      "
-    profiles: ["postgres"]
-
-  # ---------- Frontend (always runs) ----------
+  # ---------- Frontend (завжди піднімається) ----------
   frontend:
     build:
       context: .
@@ -170,3 +155,4 @@ networks:
 volumes:
   mysqldata:
   pgdata:
+  pgadmin-data:

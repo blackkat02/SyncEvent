@@ -10,16 +10,19 @@
     "lint": "pnpm -r lint",
     "db:generate": "pnpm --filter backend exec prisma generate",
     "db:studio": "pnpm --filter backend exec prisma studio",
-    "diagnose": "node gather-project-info.mjs"
+    "diagnose": "node gather-project-info.mjs",
+    "dev:postgres": "cross-env COMPOSE_PROFILES=postgres docker compose up",
+    "dev:mysql": "cross-env COMPOSE_PROFILES=mysql docker compose up"
   },
   "packageManager": "pnpm@10.30.2",
   "devDependencies": {
     "@types/pg": "^8.20.0",
+    "cross-env": "^10.1.0",
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "yup": "^1.7.1",
-    "tsup": "^8.0.0"
+    "tsup": "^8.0.0",
+    "yup": "^1.7.1"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
