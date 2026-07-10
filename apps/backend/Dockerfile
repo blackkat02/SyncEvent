@@ -1,4 +1,4 @@
-FROM node:20-alpine
+FROM node:24-alpine
 RUN npm install -g pnpm
 WORKDIR /app
 
@@ -11,6 +11,7 @@ RUN pnpm install --frozen-lockfile
 
 COPY packages/shared ./packages/shared
 COPY apps/backend ./apps/backend
+RUN chmod +x /app/apps/backend/scripts/entrypoint.sh
 
 RUN cd /app/packages/shared && /app/node_modules/.bin/tsup && /app/node_modules/.bin/tsc --emitDeclarationOnly --noEmit false
 
