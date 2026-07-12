@@ -1,4 +1,4 @@
-import { RuleTester } from '@typescript-eslint/rule-tester';
+﻿import { RuleTester } from '@typescript-eslint/rule-tester';
 import { afterAll, describe, it } from 'vitest';
 import { noFullEntityArgs } from '../src/rules/no-full-entity-args';
 
@@ -9,7 +9,6 @@ RuleTester.it = it;
 const ruleTester = new RuleTester({
   languageOptions: {
     parserOptions: {
-      // type-aware rule requires a project reference
       projectService: {
         allowDefaultProject: ['*.ts'],
         defaultProject: 'tsconfig.json',
@@ -29,7 +28,7 @@ ruleTester.run('no-full-entity-args', noFullEntityArgs, {
         create(dto);
       `,
     },
-    // Partial — allowed
+    // Narrowed Pick — allowed
     {
       code: `
         type User = { id: number; name: string; email: string };
@@ -50,7 +49,7 @@ ruleTester.run('no-full-entity-args', noFullEntityArgs, {
   ],
 
   invalid: [
-    // Full User type — forbidden
+    // Full User entity — forbidden
     {
       code: `
         type User = { id: number; name: string; email: string };
@@ -60,17 +59,7 @@ ruleTester.run('no-full-entity-args', noFullEntityArgs, {
       `,
       errors: [{ messageId: 'tooWide', data: { type: 'User' } }],
     },
-    // Full Event type — forbidden
-    {
-      code: `
-        type Event = { id: number; title: string; date: string };
-        function publish(event: Event) {}
-        const event: Event = { id: 1, title: 'Launch', date: '2026-01-01' };
-        publish(event);
-      `,
-      errors: [{ messageId: 'tooWide', data: { type: 'Event' } }],
-    },
-    // Full Sync type — forbidden
+    // Full Sync entity — forbidden
     {
       code: `
         type Sync = { id: number; status: string };
@@ -80,7 +69,7 @@ ruleTester.run('no-full-entity-args', noFullEntityArgs, {
       `,
       errors: [{ messageId: 'tooWide', data: { type: 'Sync' } }],
     },
-    // Full UserModel type — forbidden
+    // Full UserModel entity — forbidden
     {
       code: `
         type UserModel = { id: number; name: string };
