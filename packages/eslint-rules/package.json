@@ -7,13 +7,13 @@
   "types": "./dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
-    "@typescript-eslint/rule-tester": "^8.63.0",
-    "@typescript-eslint/utils": "^8.63.0",
-    "typescript": "^5.9.3",
-    "vitest": "^2.1.9"
+    "@typescript-eslint/rule-tester": "latest",
+    "@typescript-eslint/utils": "latest",
+    "vitest": "^2.1.0"
   },
   "peerDependencies": {
     "eslint": "^9.0.0"
