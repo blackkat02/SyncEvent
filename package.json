@@ -12,10 +12,13 @@
     "db:studio": "pnpm --filter backend exec prisma studio",
     "diagnose": "node gather-project-info.mjs",
     "dev:postgres": "cross-env COMPOSE_PROFILES=postgres docker compose up",
-    "dev:mysql": "cross-env COMPOSE_PROFILES=mysql docker compose up"
+    "dev:mysql": "cross-env COMPOSE_PROFILES=mysql docker compose up",
+    "build:eslint-rules": "pnpm --filter @syncevent/eslint-rules run build",
+    "prebuild": "pnpm --filter @syncevent/eslint-rules run build"
   },
   "packageManager": "pnpm@10.30.2",
   "devDependencies": {
+    "@syncevent/eslint-rules": "workspace:*",
     "@types/pg": "^8.20.0",
     "cross-env": "^10.1.0",
     "typescript": "^5.9.3"
