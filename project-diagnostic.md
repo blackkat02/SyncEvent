@@ -1,5 +1,5 @@
 # SyncEvent — Project Diagnostic
-Generated: 2026-07-08T19:08:20.742Z
+Generated: 2026-07-13T19:27:34.941Z
 
 ## Project tree
 
@@ -18,7 +18,6 @@ Generated: 2026-07-08T19:08:20.742Z
 │   ├── .vscode
 │   ├── backend/
 │   │   ├── .env.example
-│   │   ├── .eslintrc.сjs
 │   │   ├── .gitignore
 │   │   ├── .prettierrc
 │   │   ├── Dockerfile
@@ -54,7 +53,8 @@ Generated: 2026-07-08T19:08:20.742Z
 │   │   │   └── seed.ts
 │   │   ├── prisma.config.ts
 │   │   ├── scripts/
-│   │   │   └── check-db.js
+│   │   │   ├── check-db.js
+│   │   │   └── entrypoint.sh
 │   │   ├── src/
 │   │   │   ├── app.module.ts
 │   │   │   ├── auth/
@@ -92,7 +92,8 @@ Generated: 2026-07-08T19:08:20.742Z
 │   │   │   │   ├── events.controller.ts
 │   │   │   │   ├── events.module.ts
 │   │   │   │   └── events.service.ts
-│   │   │   └── main.ts
+│   │   │   ├── main.ts
+│   │   │   └── test-errors.controller.ts
 │   │   ├── test/
 │   │   │   ├── app.e2e-spec.ts
 │   │   │   └── jest-e2e.json
@@ -154,10 +155,28 @@ Generated: 2026-07-08T19:08:20.742Z
 │       └── vite.config.ts
 ├── build-log.txt
 ├── docker-compose.yml
+├── eslint.config.mjs
 ├── gather-project-info.mjs
 ├── package-lock.json
 ├── package.json
 ├── packages/
+│   ├── eslint-rules/
+│   │   ├── package.json
+│   │   ├── src/
+│   │   │   ├── configs/
+│   │   │   │   └── base.ts
+│   │   │   ├── index.ts
+│   │   │   ├── rules/
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── no-full-entity-args.ts
+│   │   │   │   └── no-prisma-in-controller.ts
+│   │   │   └── utils/
+│   │   │       └── createRule.ts
+│   │   ├── tests/
+│   │   │   ├── no-full-entity-args.test.ts
+│   │   │   └── no-prisma-in-controller.test.ts
+│   │   ├── tsconfig.json
+│   │   └── vitest.config.ts
 │   └── shared/
 │       ├── package.json
 │       ├── src/
@@ -174,6 +193,7 @@ Generated: 2026-07-08T19:08:20.742Z
 │       └── tsup.config.ts
 ├── pnpm-lock.yaml
 ├── pnpm-workspace.yaml
+├── project-diagnostic.md
 ├── terraform.tfstate
 └── tsconfig.base.json
 ```
@@ -183,19 +203,105 @@ Generated: 2026-07-08T19:08:20.742Z
 ### docker-compose.yml
 
 ```
+x-backend-base: &backend-base
+  build:
+    context: .
+    dockerfile: apps/backend/Dockerfile
+  command: ["sh", "/app/apps/backend/scripts/entrypoint.sh"]
+  networks:
+    - sync-network
+
+x-backend-env-common: &backend-env-common
+  PORT: ${PORT:-3000}
+  JWT_SECRET: ${JWT_SECRET}
+  JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+  JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN}
+  JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
+  NODE_ENV: ${NODE_ENV:-development}
+  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+
 services:
+  # ---------- PostgreSQL (--profile postgres) ----------
+  db-postgres:
+    image: postgres:16-alpine
+    container_name: sync-event-db-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - sync-network
+    profiles: ["postgres"]
+
+  backend-init:
+    <<: *backend-base
+    container_name: sync-event-init
+    environment:
+      <<: *backend-env-common
+      DB_PROVIDER: postgresql
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-postgres:5432/${POSTGRES_DB}?schema=public
+      MODE: init
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+    profiles: ["postgres"]
+
+  backend:
+    <<: *backend-base
+    container_name: sync-event-backend
+    environment:
+      <<: *backend-env-common
+      DB_PROVIDER: postgresql
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-postgres:5432/${POSTGRES_DB}?schema=public
+      MODE: serve
+    ports:
+      - "${BACKEND_PORT:-3000}:3000"
+    depends_on:
+      backend-init:
+        condition: service_completed_successfully
+    profiles: ["postgres"]
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: sync-event-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@syncevent.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "${PGADMIN_LISTEN_PORT:-5050}:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    networks:
+      - sync-network
+    depends_on:
+      db-postgres:
+        condition: service_healthy
+    profiles: ["postgres"]
+
+  # ---------- MySQL (--profile mysql) ----------
   db-mysql:
     image: mysql:8.0
     container_name: sync-event-db-mysql
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_USER: user
-      MYSQL_PASSWORD: password
-      MYSQL_DATABASE: syncevent_db
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
     ports:
-      - "3307:3306"
+      - "${MYSQL_PORT:-3307}:3306"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "user", "-ppassword"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "${MYSQL_USER}", "-p${MYSQL_PASSWORD}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -204,56 +310,35 @@ services:
       - mysqldata:/var/lib/mysql
     networks:
       - sync-network
+    profiles: ["mysql"]
 
-  backend-init:
-    build:
-      context: .
-      dockerfile: apps/backend/Dockerfile
-    container_name: sync-event-init
+  backend-init-mysql:
+    <<: *backend-base
+    container_name: sync-event-init-mysql
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      DB_PROVIDER: ${DB_PROVIDER}
-    networks:
-      - sync-network
+      <<: *backend-env-common
+      DB_PROVIDER: mysql
+      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-mysql:3306/${MYSQL_DATABASE}
+      MODE: init
     depends_on:
       db-mysql:
         condition: service_healthy
-    working_dir: /app/apps/backend
-    command: >
-      sh -c "
-          node /app/apps/backend/scripts/check-db.js &&
-          pnpm --filter backend exec prisma generate --schema=/app/apps/backend/prisma/schema.prisma &&
-          pnpm --filter backend exec prisma db push --schema=/app/apps/backend/prisma/schema.prisma &&
-          pnpm --filter backend exec ts-node /app/apps/backend/prisma/seed.ts
-        "
+    profiles: ["mysql"]
 
-  backend:
-    build:
-      context: .
-      dockerfile: apps/backend/Dockerfile
-    container_name: sync-event-backend
+  backend-mysql:
+    <<: *backend-base
+    container_name: sync-event-backend-mysql
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      DB_PROVIDER: ${DB_PROVIDER}
-      PORT: 3000
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
-      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN}
-      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
-      NODE_ENV: development
-      CORS_ORIGINS: "http://localhost:5173"
+      <<: *backend-env-common
+      DB_PROVIDER: mysql
+      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-mysql:3306/${MYSQL_DATABASE}
+      MODE: serve
     ports:
-      - "3000:3000"
+      - "${BACKEND_PORT:-3000}:3000"
     depends_on:
-      backend-init:
+      backend-init-mysql:
         condition: service_completed_successfully
-    networks:
-      - sync-network
-    command: >
-      sh -c "
-        node /app/apps/backend/scripts/check-db.js &&
-        node dist/src/main.js
-      "
+    profiles: ["mysql"]
 
   frontend:
     build:
@@ -261,11 +346,9 @@ services:
       dockerfile: apps/frontend/Dockerfile
     container_name: sync-event-frontend
     ports:
-      - "5173:5173"
+      - "${FRONTEND_PORT:-5173}:5173"
     environment:
-      - VITE_API_URL=http://localhost:3000/api
-    depends_on:
-      - backend
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:3000/api}
     networks:
       - sync-network
 
@@ -275,6 +358,8 @@ networks:
 
 volumes:
   mysqldata:
+  pgdata:
+  pgadmin-data:
 ```
 
 ### docker-compose.override.yml
@@ -314,16 +399,24 @@ onlyBuiltDependencies:
     "lint": "pnpm -r lint",
     "db:generate": "pnpm --filter backend exec prisma generate",
     "db:studio": "pnpm --filter backend exec prisma studio",
-    "diagnose": "node gather-project-info.mjs"
+    "diagnose": "node gather-project-info.mjs",
+    "dev:postgres": "cross-env COMPOSE_PROFILES=postgres docker compose up",
+    "dev:mysql": "cross-env COMPOSE_PROFILES=mysql docker compose up",
+    "build:eslint-rules": "pnpm --filter @syncevent/eslint-rules run build",
+    "prebuild": "pnpm --filter @syncevent/eslint-rules run build",
+    "test:eslint-rules": "pnpm --filter @syncevent/eslint-rules run test",
+    "test:eslint-rules:watch": "pnpm --filter @syncevent/eslint-rules run test:watch"
   },
   "packageManager": "pnpm@10.30.2",
   "devDependencies": {
+    "@syncevent/eslint-rules": "workspace:*",
     "@types/pg": "^8.20.0",
+    "cross-env": "^10.1.0",
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "yup": "^1.7.1",
-    "tsup": "^8.0.0"
+    "tsup": "^8.0.0",
+    "yup": "^1.7.1"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -336,43 +429,60 @@ onlyBuiltDependencies:
   }
 }
 
+
 ```
 
 ### .env.example
 
 ```
 # ==============================
+# Compose
+# ==============================
+COMPOSE_PROFILES=postgres
+
+# ==============================
 # Application
 # ==============================
 NODE_ENV=development
 PORT=3000
+CORS_ORIGINS=http://localhost:5173
 
 # ==============================
-# Database (PostgreSQL / Prisma)
+# PostgreSQL (--profile postgres)
 # ==============================
-# Host для Docker — 'db', для локального запуску — 'localhost'
-POSTGRES_USER=user
+POSTGRES_USER=<your_postgres_user>
 POSTGRES_PASSWORD=***REDACTED***
-POSTGRES_DB=syncevent_db
+POSTGRES_DB=<your_postgres_db_name>
+POSTGRES_PORT=5432
 
-# Формат: postgresql://USER:PASSWORD@HOST:PORT/DB?schema=public
-DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?schema=public
+# ==============================
+# MySQL (--profile mysql)
+# ==============================
+MYSQL_ROOT_PASSWORD=***REDACTED***
+MYSQL_USER=<your_mysql_user>
+MYSQL_PASSWORD=***REDACTED***
+MYSQL_DATABASE=<your_mysql_db_name>
+MYSQL_PORT=3307
 
 # ==============================
 # Authentication (JWT)
 # ==============================
-# Використовуйте довгі випадкові рядки для секретів
 JWT_SECRET=***REDACTED***
 JWT_REFRESH_SECRET=***REDACTED***
-
-# Час життя токенів (наприклад: 15m, 1h, 7d)
 JWT_ACCESS_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
 
 # ==============================
+# Backend / Frontend ports
+# ==============================
+BACKEND_PORT=3000
+FRONTEND_PORT=5173
+VITE_API_URL=http://localhost:3000/api
+
+# ==============================
 # Tools (pgAdmin)
 # ==============================
-PGADMIN_DEFAULT_EMAIL=admin@admin.com
+PGADMIN_DEFAULT_EMAIL=<your_admin_email>
 PGADMIN_DEFAULT_PASSWORD=***REDACTED***
 PGADMIN_LISTEN_PORT=5050
 ```
@@ -380,7 +490,7 @@ PGADMIN_LISTEN_PORT=5050
 ### apps/backend/Dockerfile
 
 ```
-FROM node:20-alpine
+FROM node:24-alpine
 RUN npm install -g pnpm
 WORKDIR /app
 
@@ -393,6 +503,7 @@ RUN pnpm install --frozen-lockfile
 
 COPY packages/shared ./packages/shared
 COPY apps/backend ./apps/backend
+RUN chmod +x /app/apps/backend/scripts/entrypoint.sh
 
 RUN cd /app/packages/shared && /app/node_modules/.bin/tsup && /app/node_modules/.bin/tsc --emitDeclarationOnly --noEmit false
 
@@ -672,7 +783,7 @@ if (updatedSchema !== schemaContent) {
 ### apps/frontend/Dockerfile
 
 ```
-FROM node:20-alpine
+FROM node:24-alpine
 RUN npm install -g pnpm
 WORKDIR /app
 
