@@ -1,5 +1,5 @@
 # SyncEvent — Project Diagnostic
-Generated: 2026-07-13T19:27:34.941Z
+Generated: 2026-07-14T15:24:22.847Z
 
 ## Project tree
 
@@ -16,6 +16,27 @@ Generated: 2026-07-13T19:27:34.941Z
 ├── apps/
 │   ├── .env.example
 │   ├── .vscode
+│   ├── analytics-service/
+│   │   ├── .prettierrc
+│   │   ├── Dockerfile
+│   │   ├── README.md
+│   │   ├── eslint.config.mjs
+│   │   ├── nest-cli.json
+│   │   ├── package.json
+│   │   ├── src/
+│   │   │   ├── analytics/
+│   │   │   │   ├── analytics.controller.ts
+│   │   │   │   └── analytics.service.ts
+│   │   │   ├── app.controller.spec.ts
+│   │   │   ├── app.controller.ts
+│   │   │   ├── app.module.ts
+│   │   │   ├── app.service.ts
+│   │   │   └── main.ts
+│   │   ├── test/
+│   │   │   ├── app.e2e-spec.ts
+│   │   │   └── jest-e2e.json
+│   │   ├── tsconfig.build.json
+│   │   └── tsconfig.json
 │   ├── backend/
 │   │   ├── .env.example
 │   │   ├── .gitignore
@@ -92,67 +113,94 @@ Generated: 2026-07-13T19:27:34.941Z
 │   │   │   │   ├── events.controller.ts
 │   │   │   │   ├── events.module.ts
 │   │   │   │   └── events.service.ts
+│   │   │   ├── kafka/
+│   │   │   │   ├── kafka-producer.service.ts
+│   │   │   │   └── kafka.module.ts
 │   │   │   ├── main.ts
+│   │   │   ├── redis/
+│   │   │   │   ├── redis.module.ts
+│   │   │   │   └── redis.service.ts
 │   │   │   └── test-errors.controller.ts
 │   │   ├── test/
 │   │   │   ├── app.e2e-spec.ts
 │   │   │   └── jest-e2e.json
 │   │   ├── tsconfig.build.json
 │   │   └── tsconfig.json
-│   └── frontend/
-│       ├── .eslintrc.cjs
-│       ├── .gitignore
+│   ├── frontend/
+│   │   ├── .eslintrc.cjs
+│   │   ├── .gitignore
+│   │   ├── Dockerfile
+│   │   ├── README.md
+│   │   ├── eslint.config.js
+│   │   ├── index.html
+│   │   ├── package.json
+│   │   ├── public/
+│   │   │   └── vite.svg
+│   │   ├── src/
+│   │   │   ├── App.css
+│   │   │   ├── App.tsx
+│   │   │   ├── assets/
+│   │   │   │   └── react.svg
+│   │   │   ├── components/
+│   │   │   │   ├── UserBar/
+│   │   │   │   │   └── UserBar.tsx
+│   │   │   │   └── layout/
+│   │   │   │       ├── Header.tsx
+│   │   │   │       └── MainLayout.tsx
+│   │   │   ├── features/
+│   │   │   │   ├── auth/
+│   │   │   │   │   ├── authApi.ts
+│   │   │   │   │   ├── authSlice.ts
+│   │   │   │   │   └── components/
+│   │   │   │   │       ├── LoginForm.tsx
+│   │   │   │   │       └── RegisterForm.tsx
+│   │   │   │   ├── calendar/
+│   │   │   │   │   └── components/
+│   │   │   │   │       └── CalendarHeader.tsx
+│   │   │   │   └── events/
+│   │   │   │       ├── components/
+│   │   │   │       │   └── EventCard.tsx
+│   │   │   │       └── eventsApi.ts
+│   │   │   ├── index.css
+│   │   │   ├── main.tsx
+│   │   │   ├── pages/
+│   │   │   │   ├── CreateEventPage.tsx
+│   │   │   │   ├── EventDetailsPage.tsx
+│   │   │   │   ├── EventsPage.tsx
+│   │   │   │   ├── LoginPage.tsx
+│   │   │   │   ├── MyEventsCalendar.tsx
+│   │   │   │   └── RegisterPage.tsx
+│   │   │   ├── routes/
+│   │   │   │   └── index.tsx
+│   │   │   └── store/
+│   │   │       ├── hooks.ts
+│   │   │       ├── index.ts
+│   │   │       └── store.ts
+│   │   ├── tsconfig.app.json
+│   │   ├── tsconfig.json
+│   │   ├── tsconfig.node.json
+│   │   └── vite.config.ts
+│   └── notifications-service/
+│       ├── .prettierrc
 │       ├── Dockerfile
 │       ├── README.md
-│       ├── eslint.config.js
-│       ├── index.html
+│       ├── eslint.config.mjs
+│       ├── nest-cli.json
 │       ├── package.json
-│       ├── public/
-│       │   └── vite.svg
 │       ├── src/
-│       │   ├── App.css
-│       │   ├── App.tsx
-│       │   ├── assets/
-│       │   │   └── react.svg
-│       │   ├── components/
-│       │   │   ├── UserBar/
-│       │   │   │   └── UserBar.tsx
-│       │   │   └── layout/
-│       │   │       ├── Header.tsx
-│       │   │       └── MainLayout.tsx
-│       │   ├── features/
-│       │   │   ├── auth/
-│       │   │   │   ├── authApi.ts
-│       │   │   │   ├── authSlice.ts
-│       │   │   │   └── components/
-│       │   │   │       ├── LoginForm.tsx
-│       │   │   │       └── RegisterForm.tsx
-│       │   │   ├── calendar/
-│       │   │   │   └── components/
-│       │   │   │       └── CalendarHeader.tsx
-│       │   │   └── events/
-│       │   │       ├── components/
-│       │   │       │   └── EventCard.tsx
-│       │   │       └── eventsApi.ts
-│       │   ├── index.css
-│       │   ├── main.tsx
-│       │   ├── pages/
-│       │   │   ├── CreateEventPage.tsx
-│       │   │   ├── EventDetailsPage.tsx
-│       │   │   ├── EventsPage.tsx
-│       │   │   ├── LoginPage.tsx
-│       │   │   ├── MyEventsCalendar.tsx
-│       │   │   └── RegisterPage.tsx
-│       │   ├── routes/
-│       │   │   └── index.tsx
-│       │   └── store/
-│       │       ├── hooks.ts
-│       │       ├── index.ts
-│       │       └── store.ts
-│       ├── tsconfig.app.json
-│       ├── tsconfig.json
-│       ├── tsconfig.node.json
-│       └── vite.config.ts
+│       │   ├── app.controller.spec.ts
+│       │   ├── app.controller.ts
+│       │   ├── app.module.ts
+│       │   ├── app.service.ts
+│       │   ├── main.ts
+│       │   └── notifications/
+│       │       ├── notifications.controller.ts
+│       │       └── notifications.service.ts
+│       ├── test/
+│       │   ├── app.e2e-spec.ts
+│       │   └── jest-e2e.json
+│       ├── tsconfig.build.json
+│       └── tsconfig.json
 ├── build-log.txt
 ├── docker-compose.yml
 ├── eslint.config.mjs
@@ -180,6 +228,8 @@ Generated: 2026-07-13T19:27:34.941Z
 │   └── shared/
 │       ├── package.json
 │       ├── src/
+│       │   ├── events/
+│       │   │   └── event-topics.ts
 │       │   ├── index.ts
 │       │   ├── schemas/
 │       │   │   ├── auth.schema.ts
@@ -352,6 +402,22 @@ services:
     networks:
       - sync-network
 
+  redis:
+    image: redis:7-alpine
+    container_name: sync-event-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - sync-network
+
+  kafka:
+    image: apache/kafka:3.9.0
+    container_name: sync-event-kafka
+    ports:
+      - "${KAFKA_PORT:-9092}:9092"
+    networks:
+      - sync-network
+
 networks:
   sync-network:
     driver: bridge
@@ -360,6 +426,7 @@ volumes:
   mysqldata:
   pgdata:
   pgadmin-data:
+
 ```
 
 ### docker-compose.override.yml
@@ -450,18 +517,18 @@ CORS_ORIGINS=http://localhost:5173
 # ==============================
 # PostgreSQL (--profile postgres)
 # ==============================
-POSTGRES_USER=<your_postgres_user>
+POSTGRES_USER=<postgres_user>
 POSTGRES_PASSWORD=***REDACTED***
-POSTGRES_DB=<your_postgres_db_name>
+POSTGRES_DB=<ostgres_db_name>
 POSTGRES_PORT=5432
 
 # ==============================
 # MySQL (--profile mysql)
 # ==============================
 MYSQL_ROOT_PASSWORD=***REDACTED***
-MYSQL_USER=<your_mysql_user>
+MYSQL_USER=<mysql_user>
 MYSQL_PASSWORD=***REDACTED***
-MYSQL_DATABASE=<your_mysql_db_name>
+MYSQL_DATABASE=<mysql_db_name>
 MYSQL_PORT=3307
 
 # ==============================
@@ -482,9 +549,20 @@ VITE_API_URL=http://localhost:3000/api
 # ==============================
 # Tools (pgAdmin)
 # ==============================
-PGADMIN_DEFAULT_EMAIL=<your_admin_email>
+PGADMIN_DEFAULT_EMAIL=<admin_email>
 PGADMIN_DEFAULT_PASSWORD=***REDACTED***
 PGADMIN_LISTEN_PORT=5050
+# ==============================
+# Redis
+# ==============================
+REDIS_HOST=redis
+REDIS_PORT=6379
+
+# ==============================
+# Kafka
+# ==============================
+KAFKA_BROKER=kafka:9092
+
 ```
 
 ### apps/backend/Dockerfile
@@ -543,20 +621,27 @@ CMD ["node", "dist/src/main.js"]
     "db:seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
+    "@nestjs/cache-manager": "^3.1.3",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.3",
     "@nestjs/core": "^11.0.1",
     "@nestjs/jwt": "^11.0.2",
     "@nestjs/mapped-types": "*",
+    "@nestjs/microservices": "^11.1.28",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
     "@nestjs/swagger": "^11.2.6",
+    "@nestjs/throttler": "^6.5.0",
     "@prisma/client": "^6.0.0",
     "@syncevent/shared": "workspace:*",
     "bcrypt": "^6.0.0",
+    "cache-manager": "^7.2.9",
+    "cache-manager-ioredis-yet": "^2.1.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "cookie-parser": "^1.4.7",
+    "ioredis": "^5.11.1",
+    "kafkajs": "^2.2.4",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.20.0",
@@ -573,6 +658,7 @@ CMD ["node", "dist/src/main.js"]
     "@types/bcrypt": "^6.0.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/express": "^5.0.0",
+    "@types/ioredis": "^5.0.0",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.10.7",
     "@types/passport-jwt": "^4.0.1",
