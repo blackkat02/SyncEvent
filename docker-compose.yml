@@ -147,6 +147,22 @@ services:
     networks:
       - sync-network
 
+  redis:
+    image: redis:7-alpine
+    container_name: sync-event-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - sync-network
+
+  kafka:
+    image: apache/kafka:3.9.0
+    container_name: sync-event-kafka
+    ports:
+      - "${KAFKA_PORT:-9092}:9092"
+    networks:
+      - sync-network
+
 networks:
   sync-network:
     driver: bridge

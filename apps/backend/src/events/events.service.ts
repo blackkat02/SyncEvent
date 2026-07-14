@@ -4,7 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { Visibility } from '@prisma/client';
+import { Prisma, Visibility } from '@prisma/client';
 import { CreateEventDto } from './dto/create-event.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UpdateEventDto } from './dto/update-event.dto';
@@ -15,7 +15,7 @@ export class EventsService {
   constructor(private readonly prisma: PrismaService) { }
 
   async create(dto: CreateEventDto, userId: string) {
-    const eventDate = new Date(dto.date as unknown as string);
+    const eventDate = new Date(dto.date);
 
     const tomorrow = new Date();
     tomorrow.setHours(0, 0, 0, 0);
@@ -73,12 +73,14 @@ export class EventsService {
       this.prisma.event.count({ where: whereCondition }),
     ]);
 
-    const mappedEvents = events.map((event: { participants: string | any[]; }) => ({
-      ...event,
-      isJoined:
-        Array.isArray(event.participants) && event.participants.length > 0,
-      participants: undefined,
-    }));
+    const mappedEvents = events.map(
+      (event: { participants: string | any[] }) => ({
+        ...event,
+        isJoined:
+          Array.isArray(event.participants) && event.participants.length > 0,
+        participants: undefined,
+      }),
+    );
 
     return {
       data: mappedEvents,
@@ -91,6 +93,7 @@ export class EventsService {
       },
     };
   }
+
   async findOne(id: string, currentUserId?: string) {
     const event = await this.prisma.event.findUnique({
       where: { id },
@@ -106,34 +109,57 @@ export class EventsService {
     return {
       ...event,
       isJoined: currentUserId
-        ? event.participants.some((p: { id: string; }) => p.id === currentUserId)
+        ? event.participants.some((p: { id: string }) => p.id === currentUserId)
         : false,
     };
   }
 
   async joinEvent(eventId: string, userId: string) {
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
-      include: {
-        participants: { where: { id: userId } },
-        _count: { select: { participants: true } },
-      },
-    });
+    const maxRetries = 3;
 
-    if (!event) throw new NotFoundException('Event not found');
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        return await this.prisma.$transaction(
+          async (tx) => {
+            const event = await tx.event.findUnique({
+              where: { id: eventId },
+              include: {
+                participants: { where: { id: userId } },
+                _count: { select: { participants: true } },
+              },
+            });
 
-    if (event.participants && event.participants.length > 0) {
-      throw new BadRequestException('You are already a participant');
+            if (!event) throw new NotFoundException('Event not found');
+
+            if (event.participants.length > 0) {
+              throw new BadRequestException('You are already a participant');
+            }
+
+            if (event.capacity && event._count.participants >= event.capacity) {
+              throw new BadRequestException('Event is full');
+            }
+
+            return tx.event.update({
+              where: { id: eventId },
+              data: { participants: { connect: { id: userId } } },
+            });
+          },
+          { isolationLevel: 'Serializable' },
+        );
+      } catch (err) {
+        // Postgres: код 40001 (serialization_failure)
+        // Prisma віддає це як P2034
+        const isSerializationConflict =
+          err instanceof Prisma.PrismaClientKnownRequestError &&
+          (err.code === 'P2034' ||
+            (err.meta as { code?: string })?.code === '40001');
+
+        if (isSerializationConflict && attempt < maxRetries) {
+          continue;
+        }
+        throw err;
+      }
     }
-
-    if (event.capacity && event._count.participants >= event.capacity) {
-      throw new BadRequestException('Event is full');
-    }
-
-    return this.prisma.event.update({
-      where: { id: eventId },
-      data: { participants: { connect: { id: userId } } },
-    });
   }
 
   async leaveEvent(eventId: string, userId: string) {
@@ -154,7 +180,7 @@ export class EventsService {
       },
     });
 
-    return events.map((event: { authorId: string; }) => ({
+    return events.map((event: { authorId: string }) => ({
       ...event,
       isJoined: true,
       isOrganizer: event.authorId === userId,

@@ -3,4 +3,4 @@ import { baseConfig } from './configs/base.js';
 
 export { rules, baseConfig };
 
-export default { rules };
+// export default { rules };
