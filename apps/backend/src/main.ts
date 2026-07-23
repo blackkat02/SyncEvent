@@ -21,8 +21,10 @@ async function bootstrap() {
 
   app.use(cookieParser());
 
-  // Enable CORS for frontend
-  const allowedOrigins = process.env.CORS_ORIGINS?.split(',') || ['http://localhost:5173', 'http://localhost:3000'];
+  const allowedOrigins = process.env.CORS_ORIGINS?.split(',') || [
+    'http://localhost:5173',
+    'http://localhost:3000',
+  ];
   app.enableCors({
     origin: allowedOrigins,
     credentials: true,
@@ -38,7 +40,7 @@ async function bootstrap() {
 
   app.useGlobalPipes(
     new ValidationPipe({
-      transform: true, // <-- Перевірь цей рядок! Без нього DTO не прийме "3" як число
+      transform: true,
       whitelist: true,
     }),
   );

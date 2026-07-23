@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Query,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import {
   ApiOperation,
@@ -97,8 +98,11 @@ export class EventsController {
   @ApiOperation({ summary: 'Join an event' })
   @ApiResponse({ status: 200, description: 'Successfully joined.' })
   @ApiResponse({ status: 400, description: 'Event is full or already joined.' })
-  async join(@Param('id') id: string, @GetUser('id') userId: string) {
-    return await this.eventsService.joinEvent(id, userId);
+  async join(
+    @Param('id', ParseUUIDPipe) id: string,
+    @GetUser('id') userId: string,
+  ) {
+    return this.eventsService.joinEvent(id, userId);
   }
 
   @Post(':id/leave')

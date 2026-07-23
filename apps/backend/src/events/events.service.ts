@@ -147,8 +147,6 @@ export class EventsService {
           { isolationLevel: 'Serializable' },
         );
       } catch (err) {
-        // Postgres: код 40001 (serialization_failure)
-        // Prisma віддає це як P2034
         const isSerializationConflict =
           err instanceof Prisma.PrismaClientKnownRequestError &&
           (err.code === 'P2034' ||
