@@ -3,6 +3,14 @@
 /node_modules
 /build
 
+# stray in-place tsc output (build emits to /dist)
+/env.js
+/env.d.ts
+/env.d.ts.map
+/prisma/*.js
+/prisma/*.d.ts
+/prisma/*.d.ts.map
+
 # Logs
 logs
 *.log

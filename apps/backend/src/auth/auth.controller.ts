@@ -6,8 +6,8 @@ import {
   Get,
   UseGuards,
   UnauthorizedException,
-  Res, // ✅ Додали Res
-  Req, // ✅ Додали Req
+  Res,
+  Req,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { AuthGuard } from '@nestjs/passport';
@@ -28,8 +28,6 @@ import {
 } from '@syncevent/shared';
 import { YupValidationPipe } from '../common/pipes/yup-validation.pipe';
 import { GetUser } from '../common/decorators/get-user.decorator';
-
-// ✅ Обов'язково імпортуємо типи Express для роботи з куками
 import { Request, Response } from 'express';
 
 @ApiTags('Auth')
@@ -44,9 +42,9 @@ export class AuthController {
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',        // ← було 'strict', змінити на 'lax'
+      sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: '/',              // ← було '/api/auth/refresh', змінити на '/'
+      path: '/',
     });
   }
 
@@ -56,14 +54,12 @@ export class AuthController {
   @UsePipes(new YupValidationPipe(registerSchema))
   async register(
     @Body() registerDto: RegisterInput,
-    @Res({ passthrough: true }) res: Response, // ✅ Впроваджуємо об'єкт відповіді
+    @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.register(registerDto);
 
-    // Запікаємо куку
     this.setRefreshTokenCookie(res, result.refreshToken);
 
-    // Повертаємо фронтенду ТІЛЬКИ те, що йому дозволено бачити (без рефреш-токена)
     return {
       user: result.user,
       accessToken: result.accessToken,
@@ -78,12 +74,9 @@ export class AuthController {
     @Body() loginDto: LoginInput,
     @Res({ passthrough: true }) res: Response,
   ) {
-    console.log('LOGIN CALLED, setting cookie...');
     const result = await this.authService.login(loginDto);
-    console.log('refreshToken exists:', !!result.refreshToken);
 
     this.setRefreshTokenCookie(res, result.refreshToken);
-    console.log('Cookie set!');
 
     return {
       user: result.user,
@@ -102,11 +95,9 @@ export class AuthController {
   @Post('refresh')
   @ApiOperation({ summary: 'Refresh access token using refresh token from cookies' })
   async refresh(
-    @Req() req: Request, // ✅ Читаємо запит, щоб витягнути куки
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    console.log('All cookies:', req.cookies);
-    console.log('Headers:', req.headers.cookie);
     const refreshToken = req.cookies?.['refreshToken'];
 
     if (!refreshToken) {

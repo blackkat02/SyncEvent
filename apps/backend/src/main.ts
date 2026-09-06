@@ -38,16 +38,12 @@ async function bootstrap() {
 
   app.useGlobalPipes(
     new ValidationPipe({
-      transform: true, // <-- Перевірь цей рядок! Без нього DTO не прийме "3" як число
+      transform: true,
       whitelist: true,
     }),
   );
 
   await app.listen(port);
-
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(`Server running on http://localhost:${port}`);
-  }
 
   logger.log(`🚀 Server running on http://localhost:${port}`);
 }

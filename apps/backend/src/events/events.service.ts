@@ -21,12 +21,6 @@ export class EventsService {
     tomorrow.setHours(0, 0, 0, 0);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    console.log('=== DATE DEBUG ===');
-    console.log('raw dto.date:', dto.date);
-    console.log('parsed eventDate:', eventDate.toISOString());
-    console.log('server tomorrow:', tomorrow.toISOString());
-    console.log('server TZ offset (min):', new Date().getTimezoneOffset());
-
     if (isNaN(eventDate.getTime()) || eventDate < tomorrow) {
       throw new BadRequestException('Event date must be at least tomorrow');
     }
