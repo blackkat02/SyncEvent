@@ -1,10 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma, Visibility } from '@prisma/client';
+import { Visibility } from '@prisma/client';
 import { EventsService } from './events.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateEventDto } from './dto/create-event.dto';
@@ -20,14 +21,22 @@ type PrismaEventMock = {
   create: jest.Mock;
   findMany: jest.Mock;
   findUnique: jest.Mock;
+  findUniqueOrThrow: jest.Mock;
   count: jest.Mock;
   update: jest.Mock;
+  updateMany: jest.Mock;
   delete: jest.Mock;
+  /** Prisma field-reference handle, used by the conditional increment. */
+  fields: { capacity: unknown };
 };
+
+type OutboxMock = { create: jest.Mock };
 
 type PrismaMock = {
   event: PrismaEventMock;
+  outboxEvent: OutboxMock;
   $transaction: jest.Mock;
+  $executeRaw: jest.Mock;
 };
 
 const createPrismaMock = (): PrismaMock => {
@@ -35,21 +44,33 @@ const createPrismaMock = (): PrismaMock => {
     create: jest.fn(),
     findMany: jest.fn(),
     findUnique: jest.fn(),
+    findUniqueOrThrow: jest.fn(),
     count: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
     delete: jest.fn(),
+    fields: { capacity: 'capacity' },
   };
+
+  const outboxEvent: OutboxMock = { create: jest.fn() };
+  const $executeRaw = jest.fn();
 
   const $transaction = jest.fn((arg: unknown) => {
     // Callback form: prisma.$transaction(async (tx) => { ... })
     if (typeof arg === 'function') {
-      return (arg as (tx: { event: PrismaEventMock }) => unknown)({ event });
+      return (
+        arg as (tx: {
+          event: PrismaEventMock;
+          outboxEvent: OutboxMock;
+          $executeRaw: jest.Mock;
+        }) => unknown
+      )({ event, outboxEvent, $executeRaw });
     }
     // Array form: prisma.$transaction([p1, p2])
     return Promise.all(arg as Promise<unknown>[]);
   });
 
-  return { event, $transaction };
+  return { event, outboxEvent, $transaction, $executeRaw };
 };
 
 /** A date guaranteed to satisfy the "at least tomorrow" rule. */
@@ -112,7 +133,11 @@ describe('EventsService', () => {
 
     it('persists the event with the author connected as a participant', async () => {
       const dto = baseDto();
-      const created = { id: 'event-1', ...dto };
+      const created = {
+        id: 'event-1',
+        ...dto,
+        createdAt: new Date('2026-06-01T00:00:00.000Z'),
+      };
       prisma.event.create.mockResolvedValue(created);
 
       const result = await service.create(dto, 'user-1');
@@ -124,6 +149,28 @@ describe('EventsService', () => {
       expect(arg.data.date).toBeInstanceOf(Date);
       expect(arg.data.date.toISOString()).toBe(dto.date);
       expect(arg.data.participants).toEqual({ connect: { id: 'user-1' } });
+      expect(arg.data.seatsTaken).toBe(1); // author counts as the first seat
+    });
+
+    it('writes an event.created outbox row in the same transaction', async () => {
+      const dto = baseDto();
+      prisma.event.create.mockResolvedValue({
+        id: 'event-1',
+        title: dto.title,
+        createdAt: new Date('2026-06-01T00:00:00.000Z'),
+      });
+
+      await service.create(dto, 'user-1');
+
+      const outboxArg = prisma.outboxEvent.create.mock.calls[0][0];
+      expect(outboxArg.data.topic).toBe('event.created');
+      expect(outboxArg.data.key).toBe('event-1');
+      expect(outboxArg.data.payload).toMatchObject({
+        eventId: 'event-1',
+        authorId: 'user-1',
+        title: dto.title,
+        messageId: outboxArg.data.id,
+      });
     });
   });
 
@@ -218,7 +265,8 @@ describe('EventsService', () => {
   });
 
   describe('joinEvent', () => {
-    it('throws when the event does not exist', async () => {
+    it('throws NotFound when the seat is unclaimed and the event is gone', async () => {
+      prisma.event.updateMany.mockResolvedValue({ count: 0 });
       prisma.event.findUnique.mockResolvedValue(null);
 
       await expect(service.joinEvent('missing', 'user-1')).rejects.toBeInstanceOf(
@@ -227,93 +275,144 @@ describe('EventsService', () => {
     });
 
     it('rejects a user who already joined', async () => {
+      prisma.event.updateMany.mockResolvedValue({ count: 0 });
       prisma.event.findUnique.mockResolvedValue({
         id: 'e1',
         participants: [{ id: 'user-1' }],
-        _count: { participants: 1 },
       });
 
+      await expect(service.joinEvent('e1', 'user-1')).rejects.toBeInstanceOf(
+        ConflictException,
+      );
       await expect(service.joinEvent('e1', 'user-1')).rejects.toThrow(
         'You are already a participant',
       );
     });
 
     it('rejects joining a full event', async () => {
-      prisma.event.findUnique.mockResolvedValue({
-        id: 'e1',
-        participants: [],
-        capacity: 2,
-        _count: { participants: 2 },
-      });
+      prisma.event.updateMany.mockResolvedValue({ count: 0 });
+      prisma.event.findUnique.mockResolvedValue({ id: 'e1', participants: [] });
 
       await expect(service.joinEvent('e1', 'user-1')).rejects.toThrow(
         'Event is full',
       );
     });
 
-    it('connects the user when there is room', async () => {
-      prisma.event.findUnique.mockResolvedValue({
+    it('claims a seat with a guarded conditional increment, then connects', async () => {
+      prisma.event.updateMany.mockResolvedValue({ count: 1 });
+      prisma.event.update.mockResolvedValue({
         id: 'e1',
-        participants: [],
-        capacity: 10,
-        _count: { participants: 3 },
+        _count: { participants: 4 },
       });
-      prisma.event.update.mockResolvedValue({ id: 'e1' });
 
       await service.joinEvent('e1', 'user-1');
+
+      const incrementArg = prisma.event.updateMany.mock.calls[0][0];
+      expect(incrementArg.data).toEqual({ seatsTaken: { increment: 1 } });
+      expect(incrementArg.where.id).toBe('e1');
+      // only increments when the user is not already in and a seat is free
+      expect(incrementArg.where.participants).toEqual({ none: { id: 'user-1' } });
+      expect(incrementArg.where.OR).toEqual([
+        { capacity: null },
+        { seatsTaken: { lt: 'capacity' } },
+      ]);
 
       expect(prisma.event.update).toHaveBeenCalledWith({
         where: { id: 'e1' },
         data: { participants: { connect: { id: 'user-1' } } },
+        include: { _count: { select: { participants: true } } },
       });
+
+      // and an event.user-joined outbox row, same transaction
+      const outboxArg = prisma.outboxEvent.create.mock.calls[0][0];
+      expect(outboxArg.data.topic).toBe('event.user-joined');
+      expect(outboxArg.data.key).toBe('e1');
+      expect(outboxArg.data.payload).toMatchObject({ eventId: 'e1', userId: 'user-1' });
     });
 
-    it('retries on a serialization conflict and then succeeds', async () => {
-      const conflict = new Prisma.PrismaClientKnownRequestError(
-        'write conflict',
-        { code: 'P2034', clientVersion: 'test' },
+    it('never connects the user when the seat could not be claimed', async () => {
+      prisma.event.updateMany.mockResolvedValue({ count: 0 });
+      prisma.event.findUnique.mockResolvedValue({ id: 'e1', participants: [] });
+
+      await expect(service.joinEvent('e1', 'user-1')).rejects.toThrow(
+        'Event is full',
       );
-
-      prisma.$transaction
-        .mockRejectedValueOnce(conflict)
-        .mockImplementationOnce((cb: (tx: unknown) => unknown) => {
-          prisma.event.findUnique.mockResolvedValue({
-            id: 'e1',
-            participants: [],
-            _count: { participants: 0 },
-          });
-          prisma.event.update.mockResolvedValue({ id: 'e1' });
-          return cb({ event: prisma.event });
-        });
-
-      const result = await service.joinEvent('e1', 'user-1');
-
-      expect(result).toEqual({ id: 'e1' });
-      expect(prisma.$transaction).toHaveBeenCalledTimes(2);
-    });
-
-    it('gives up after exhausting retries', async () => {
-      const conflict = new Prisma.PrismaClientKnownRequestError(
-        'write conflict',
-        { code: 'P2034', clientVersion: 'test' },
-      );
-      prisma.$transaction.mockRejectedValue(conflict);
-
-      await expect(service.joinEvent('e1', 'user-1')).rejects.toBe(conflict);
-      expect(prisma.$transaction).toHaveBeenCalledTimes(3);
+      expect(prisma.event.update).not.toHaveBeenCalled();
     });
   });
 
   describe('leaveEvent', () => {
-    it('disconnects the user from the event', async () => {
-      prisma.event.update.mockResolvedValue({ id: 'e1' });
+    it('locks the event row, disconnects via Prisma Client, then decrements the seat count', async () => {
+      prisma.event.findUnique.mockResolvedValue({
+        authorId: 'organizer',
+        participants: [{ id: 'user-1' }],
+      });
+      prisma.event.findUniqueOrThrow.mockResolvedValue({
+        id: 'e1',
+        _count: { participants: 3 },
+      });
 
       await service.leaveEvent('e1', 'user-1');
 
+      // both raw statements ran: the row lock, then the guarded decrement —
+      // membership itself is never touched via raw SQL (no "A"/"B" guessing
+      // on the implicit-relation join table, which is not a stable contract)
+      expect(prisma.$executeRaw).toHaveBeenCalledTimes(2);
       expect(prisma.event.update).toHaveBeenCalledWith({
         where: { id: 'e1' },
         data: { participants: { disconnect: { id: 'user-1' } } },
       });
+      expect(prisma.event.findUniqueOrThrow).toHaveBeenCalledWith({
+        where: { id: 'e1' },
+        include: { _count: { select: { participants: true } } },
+      });
+
+      const outboxArg = prisma.outboxEvent.create.mock.calls[0][0];
+      expect(outboxArg.data.topic).toBe('event.user-left');
+      expect(outboxArg.data.key).toBe('e1');
+      expect(outboxArg.data.payload).toMatchObject({ eventId: 'e1', userId: 'user-1' });
+    });
+
+    it('throws NotFound when the event does not exist', async () => {
+      prisma.event.findUnique.mockResolvedValue(null);
+
+      await expect(service.leaveEvent('missing', 'user-1')).rejects.toBeInstanceOf(
+        NotFoundException,
+      );
+      expect(prisma.event.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects the organizer trying to leave their own event', async () => {
+      prisma.event.findUnique.mockResolvedValue({
+        authorId: 'user-1',
+        participants: [{ id: 'user-1' }],
+      });
+
+      await expect(service.leaveEvent('e1', 'user-1')).rejects.toBeInstanceOf(
+        ForbiddenException,
+      );
+      await expect(service.leaveEvent('e1', 'user-1')).rejects.toThrow(
+        'The organizer cannot leave their own event',
+      );
+      expect(prisma.event.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects when the user is not a participant of an existing event', async () => {
+      prisma.event.findUnique.mockResolvedValue({
+        authorId: 'organizer',
+        participants: [],
+      });
+
+      await expect(service.leaveEvent('e1', 'user-1')).rejects.toBeInstanceOf(
+        ConflictException,
+      );
+      await expect(service.leaveEvent('e1', 'user-1')).rejects.toThrow(
+        'You are not a participant of this event',
+      );
+      expect(prisma.event.update).not.toHaveBeenCalled();
+      // only the row lock ran (once per call) — no membership to disconnect,
+      // so the seat count is left untouched
+      expect(prisma.$executeRaw).toHaveBeenCalledTimes(2);
     });
   });
 
@@ -364,6 +463,11 @@ describe('EventsService', () => {
       await service.remove('e1', 'owner');
 
       expect(prisma.event.delete).toHaveBeenCalledWith({ where: { id: 'e1' } });
+
+      const outboxArg = prisma.outboxEvent.create.mock.calls[0][0];
+      expect(outboxArg.data.topic).toBe('event.deleted');
+      expect(outboxArg.data.key).toBe('e1');
+      expect(outboxArg.data.payload).toMatchObject({ eventId: 'e1', deletedBy: 'owner' });
     });
   });
 
