@@ -8,6 +8,10 @@ import {
   Delete,
   UseGuards,
   Query,
+  Headers,
+  HttpCode,
+  BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiOperation,
@@ -22,12 +26,18 @@ import { AuthGuard } from '@nestjs/passport';
 import { OptionalAuthGuard } from '../common/guards/optional-auth.guard';
 import { GetUser } from '../common/decorators/get-user.decorator';
 import { PaginationDto } from '../common/dto/pagination.dto';
+import { BookingQueueService } from '../booking/booking-queue.service';
+import { BookingStatusService } from '../booking/booking-status.service';
 
 @ApiTags('Events')
 @ApiBearerAuth()
 @Controller('events')
 export class EventsController {
-  constructor(private readonly eventsService: EventsService) { }
+  constructor(
+    private readonly eventsService: EventsService,
+    private readonly bookingQueue: BookingQueueService,
+    private readonly bookingStatus: BookingStatusService,
+  ) { }
 
   @Post()
   @UseGuards(AuthGuard('jwt'))
@@ -62,6 +72,23 @@ export class EventsController {
     return await this.eventsService.findMyCalendar(userId);
   }
 
+  @Get('join-requests/:requestId')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({ summary: 'Poll the status of a queued join request' })
+  @ApiResponse({ status: 200, description: 'PENDING, CONFIRMED or REJECTED.' })
+  @ApiResponse({ status: 404, description: 'Unknown or expired request ID.' })
+  async getJoinRequestStatus(
+    @Param('requestId') requestId: string,
+    @GetUser('id') userId: string,
+  ) {
+    const status = await this.bookingStatus.getStatus(requestId);
+    // 404 (not 403) for someone else's request — don't confirm it exists.
+    if (!status || status.userId !== userId) {
+      throw new NotFoundException('Unknown or expired join request');
+    }
+    return status;
+  }
+
   @Get(':id')
   @UseGuards(OptionalAuthGuard)
   @ApiOperation({ summary: 'Get event details by ID' })
@@ -94,16 +121,38 @@ export class EventsController {
 
   @Post(':id/join')
   @UseGuards(AuthGuard('jwt'))
-  @ApiOperation({ summary: 'Join an event' })
-  @ApiResponse({ status: 200, description: 'Successfully joined.' })
-  @ApiResponse({ status: 400, description: 'Event is full or already joined.' })
-  async join(@Param('id') id: string, @GetUser('id') userId: string) {
-    return await this.eventsService.joinEvent(id, userId);
+  @HttpCode(202)
+  @ApiOperation({
+    summary: 'Request to join an event (queued, asynchronous)',
+  })
+  @ApiResponse({
+    status: 202,
+    description:
+      'Request accepted and queued. Poll GET /events/join-requests/:requestId for the outcome. ' +
+      'Send an `Idempotency-Key` header to make a retry or double-submit reuse the same request.',
+  })
+  async join(
+    @Param('id') id: string,
+    @GetUser('id') userId: string,
+    @Headers('idempotency-key') idempotencyKey?: string,
+  ) {
+    if (idempotencyKey !== undefined && (idempotencyKey.length < 8 || idempotencyKey.length > 200)) {
+      throw new BadRequestException('Idempotency-Key must be 8–200 characters');
+    }
+    const requestId = await this.bookingQueue.enqueueJoin(id, userId, idempotencyKey);
+    return {
+      requestId,
+      statusUrl: `/events/join-requests/${requestId}`,
+    };
   }
 
   @Post(':id/leave')
   @UseGuards(AuthGuard('jwt'))
   @ApiOperation({ summary: 'Leave an event' })
+  @ApiResponse({ status: 200, description: 'Successfully left.' })
+  @ApiResponse({ status: 403, description: 'The organizer cannot leave their own event.' })
+  @ApiResponse({ status: 404, description: 'Event not found.' })
+  @ApiResponse({ status: 409, description: 'User is not a participant.' })
   async leave(@Param('id') id: string, @GetUser('id') userId: string) {
     return await this.eventsService.leaveEvent(id, userId);
   }

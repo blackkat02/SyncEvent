@@ -5,6 +5,7 @@ import {
   UserJoinedPayload,
   UserLeftPayload,
   EventCreatedPayload,
+  EventDeletedPayload,
 } from '@syncevent/shared';
 import { AnalyticsService } from './analytics.service';
 
@@ -25,5 +26,10 @@ export class AnalyticsController {
   @EventPattern(EventTopics.EVENT_CREATED)
   async handleEventCreated(@Payload() data: EventCreatedPayload) {
     await this.analytics.trackEventCreated(data);
+  }
+
+  @EventPattern(EventTopics.EVENT_DELETED)
+  async handleEventDeleted(@Payload() data: EventDeletedPayload) {
+    await this.analytics.trackEventDeleted(data);
   }
 }

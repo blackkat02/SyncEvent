@@ -52,12 +52,14 @@ Every app depends on `@syncevent/shared` (workspace package) for a single source
 
 ### Event-driven services (Kafka)
 
-`@syncevent/shared` defines the domain-event contracts in `EventTopics` (`event.user-joined`, `event.user-left`, `event.created`, `event.deleted`) together with their payload types. Two NestJS microservices consume these topics:
+`@syncevent/shared` defines the domain-event contracts in `EventTopics` (`event.user-joined`, `event.user-left`, `event.created`, `event.deleted`) together with their payload types. Two NestJS microservices consume these topics (both in `docker-compose.yml`):
 
-- **`analytics-service`** — `analytics-consumer` group; logs/records join, leave and event-created metrics.
-- **`notifications-service`** — `notifications-consumer` group; notifies the organizer when someone joins.
+- **`analytics-service`** — `analytics-consumer` group; logs join / leave / event-created / event-deleted.
+- **`notifications-service`** — `notifications-consumer` group; notifies the organizer on join and leave.
 
-The backend carries a Kafka producer (`src/kafka`) and a Redis distributed-lock helper (`src/redis`). The infrastructure containers (`redis`, `kafka`) run as part of the default Compose stack. The consumer services have their own Dockerfiles but are not yet part of `docker-compose.yml`, and wiring the producer/lock into the request flow is in progress — today `joinEvent` guards against double-booking with a Prisma `Serializable` transaction plus a bounded retry on serialization conflicts (Postgres `40001` / Prisma `P2034`).
+**Delivery path:** `EventsService` writes an `OutboxEvent` row in the *same* Postgres transaction as the state change; `OutboxRelayService` polls that table (~1 s) and publishes each row to Kafka keyed by `eventId`, stamping `sentAt` only after the broker acks. At-least-once — consumers dedupe on `payload.messageId` (the outbox row id). Kafka being down never blocks a booking; the relay catches up when it returns.
+
+The overbooking guarantee is **not** on this path — `joinEvent` claims the seat with a single atomic `UPDATE "Event" SET seatsTaken = seatsTaken + 1 WHERE … seatsTaken < capacity` inside a Read-Committed transaction (denormalised `Event.seatsTaken` counter, no `Serializable`, no retry loop). The join API is queued via Redis/BullMQ (`202 + requestId`, poll `GET /events/join-requests/:requestId`). Full plan: [`docs/architecture/booking-concurrency.md`](docs/architecture/booking-concurrency.md).
 
 ### Dual-database support (MySQL / PostgreSQL)
 
@@ -267,10 +269,24 @@ The backend has a Jest + ts-jest unit-test suite. Tests run against in-memory mo
 pnpm --filter backend test          # run all unit tests (*.spec.ts under src/)
 pnpm --filter backend test:watch    # watch mode
 pnpm --filter backend test:cov      # with coverage report -> apps/backend/coverage/
-pnpm --filter backend test:e2e      # e2e config (test/jest-e2e.json) — no specs yet
+pnpm --filter backend test:e2e      # real-Postgres specs (test/*.e2e-spec.ts) — needs a DB
+```
+
+Two checks need live infrastructure (they are **not** part of `pnpm test`):
+
+```bash
+# Race-condition proof: N concurrent joiners on a capacity-1 event, real Postgres.
+DATABASE_URL=postgresql://user:password@localhost:5432/syncevent_db?schema=public \
+  pnpm --filter backend test:e2e
+
+# Phase 1 booking-queue smoke test: real Redis + Postgres, whole enqueue→worker→status path.
+# Prereqs + env in the file header (apps/backend/scripts/smoke-booking.ts).
+docker compose --profile postgres up -d db-postgres redis
+DATABASE_URL=... REDIS_HOST=localhost pnpm --filter backend smoke:booking
 ```
 
 Setup lives in `apps/backend`:
 
 - Jest config: the `"jest"` block in `package.json` — ts-jest transform via `tsconfig.spec.json`, `test/setup-env.ts` injects dummy env vars so modules that read `env.ts` at import time don't throw.
-- Covered so far: `EventsService` (`src/events/events.service.spec.ts`) — create/date validation, pagination, `findOne`, join/leave with capacity + serialization-conflict retry, calendar, ownership checks on update/delete. `AuthService` / `AuthController` have smoke specs.
+- Covered so far: `EventsService` (`src/events/events.service.spec.ts`) — create/date validation (author counts as the first seat), pagination, `findOne`, join/leave with the guarded conditional-increment capacity check (full → 409, already joined → 409) and same-transaction outbox writes, calendar, ownership checks on update/delete. `BookingQueueService` / `BookingStatusService` / `BookingProcessor`, `OutboxRelayService`, `KafkaProducerService`, and `PrismaExceptionFilter` have their own specs. `AuthService` / `AuthController` have smoke specs.
+- The join flow is queued (`POST /events/:id/join` → `202 { requestId }`, poll `GET /events/join-requests/:requestId`). Send an `Idempotency-Key` header to make a retry or double-submit collapse onto the same request.

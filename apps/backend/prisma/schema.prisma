@@ -25,6 +25,22 @@ model User {
   joinedEvents  Event[] @relation("JoinedEvents")
 }
 
+/// Transactional outbox: a domain-event row is written in the SAME
+/// transaction as the state change that produced it, then a relay publishes
+/// it to Kafka and stamps `sentAt`. Guarantees at-least-once delivery even
+/// if the process dies between commit and publish. No FK to Event on
+/// purpose — the row (e.g. event.deleted) must outlive the event.
+model OutboxEvent {
+  id        String    @id @default(cuid())
+  topic     String
+  key       String // Kafka partition key — always the eventId (per-event ordering)
+  payload   Json
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+
+  @@index([sentAt, createdAt])
+}
+
 model Event {
   id           String     @id @default(cuid())
   title        String
@@ -32,6 +48,7 @@ model Event {
   date         DateTime
   location     String
   capacity     Int?
+  seatsTaken   Int        @default(0)
   visibility   Visibility @default(PUBLIC)
   authorId     String
   author       User       @relation("CreatedEvents", fields: [authorId], references: [id])

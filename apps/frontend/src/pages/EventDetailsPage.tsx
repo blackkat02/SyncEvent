@@ -15,7 +15,6 @@ import {
 } from "../features/events/eventsApi";
 import { useAppSelector } from "../store/hooks";
 import { selectCurrentUser } from "../features/auth/authSlice";
-import type { EventResponse } from "@syncevent/shared";
 
 export const EventDetailsPage = () => {
   const { id } = useParams<{ id: string }>();

@@ -14,6 +14,13 @@ x-backend-env-common: &backend-env-common
   JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
   NODE_ENV: ${NODE_ENV:-development}
   CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+  # Redis-черга бронювання (Фаза 1) — RedisService/BullMQ підключаються сюди,
+  # а не до "localhost" (дефолт поза контейнером), тож без цього backend
+  # у compose тихо не знаходив би Redis.
+  REDIS_HOST: redis
+  REDIS_PORT: ${REDIS_PORT:-6379}
+  # Kafka producer + outbox relay (Фаза 2). Внутрішня адреса брокера.
+  KAFKA_BROKER: kafka:9092
 
 services:
   # ---------- PostgreSQL (--profile postgres) ----------
@@ -159,7 +166,84 @@ services:
     image: apache/kafka:3.9.0
     container_name: sync-event-kafka
     ports:
-      - "${KAFKA_PORT:-9092}:9092"
+      # In-container clients use kafka:9092. Host tools use localhost:29092.
+      - "${KAFKA_HOST_PORT:-29092}:29092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      # Empty host ("://:9092") binds all interfaces. Do NOT use "0.0.0.0" — the
+      # apache/kafka image's storage-format step falls back to KAFKA_LISTENERS
+      # when building advertised.listeners and Kafka rejects the 0.0.0.0 meta-address.
+      KAFKA_LISTENERS: CONTROLLER://:9093,PLAINTEXT://:9092,PLAINTEXT_HOST://:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      CLUSTER_ID: sync-event-kraft-cluster
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
+    networks:
+      - sync-network
+
+  # One-shot: create the domain-event topics up front so consumers don't race
+  # Kafka's lazy auto-creation on first connect ("This server does not host
+  # this topic-partition", which kafkajs doesn't recover from cleanly).
+  kafka-init:
+    image: apache/kafka:3.9.0
+    container_name: sync-event-kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        for t in event.user-joined event.user-left event.created event.deleted; do
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 \
+            --create --if-not-exists --topic "$$t" --partitions 1 --replication-factor 1
+        done
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list
+    networks:
+      - sync-network
+
+  # ---------- Kafka consumer microservices (always on, no DB needed) ----------
+  analytics-service:
+    build:
+      context: .
+      dockerfile: apps/analytics-service/Dockerfile
+    container_name: sync-event-analytics
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      KAFKA_BROKER: kafka:9092
+      KAFKAJS_NO_PARTITIONER_WARNING: "1"
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    restart: on-failure
+    networks:
+      - sync-network
+
+  notifications-service:
+    build:
+      context: .
+      dockerfile: apps/notifications-service/Dockerfile
+    container_name: sync-event-notifications
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      KAFKA_BROKER: kafka:9092
+      KAFKAJS_NO_PARTITIONER_WARNING: "1"
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    restart: on-failure
     networks:
       - sync-network
 
