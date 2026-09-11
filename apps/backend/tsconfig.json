@@ -5,7 +5,7 @@
     "rootDir": ".",
     "module": "NodeNext",
     "target": "ES2023",
-    "types": ["node"],
+    "types": ["node", "jest"],
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true
   },

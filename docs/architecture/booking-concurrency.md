@@ -352,9 +352,14 @@ Relay v2 — Debezium CDC.
 > проєкт компілюється і тести зелені.
 >
 > Зауваги по інфраструктурі:
-> - Репозиторій закоммічено з `provider = "mysql"`; `check-db.js` підміняє провайдер
->   і теку `migrations/` під `DB_PROVIDER` на старті контейнера. Цільовий провайдер —
->   PostgreSQL (`migration_lock.toml` = `postgresql`), тому SQL міграцій пишемо під Postgres.
+> - **Оновлено 2026-09-11:** репозиторій тепер закомічено з `provider = "postgresql"`
+>   напряму (раніше — `mysql`, історичний артефакт зі старту проєкту, який ламав кожен
+>   host-side скрипт: `DATABASE_URL` не збігалась із заявленим провайдером без ручного
+>   `check-db.js` наперед). `check-db.js` більше не потрібен для звичайного Postgres-шляху —
+>   він і далі підміняє провайдер + теку `migrations/`, але **лише коли явно попросили
+>   MySQL** (`DB_PROVIDER=mysql`); без `DB_PROVIDER` дефолт тепер `postgresql`, що збігається
+>   з тим, що вже закомічено. Цільовий провайдер — PostgreSQL (`migration_lock.toml` і так уже
+>   був `postgresql`), тому SQL міграцій і далі пишемо під Postgres.
 > - Контейнер застосовує схему через **`prisma db push`**, а не `migrate deploy`.
 >   `db push` додасть нову колонку з дефолтом, але **не виконає backfill** із файлу
 >   міграції. Для наявних даних backfill треба або запустити вручну (SQL нижче), або
@@ -408,10 +413,21 @@ Relay v2 — Debezium CDC.
 
 Залишковий ризик: **абсолютно одночасні** два запити того самого користувача можуть
 пере-інкрементити `seatsTaken` на 1 (складений PK `_JoinedEvents` не дасть дублю членства,
-але EPQ-перевірка підзапиту `participants: { none }` може не побачити щойно закоммічений
-рядок). Це self-inflicted дрейф лічильника одного юзера, не овербукінг інших. Повністю
-закривається явною моделлю `EventParticipant` (див. «Місток у наступні фази») або
-idempotency-ключем у Фазі 1.
+але EPQ-перевірка підзапиду `participants: { none }` може не побачити щойно закоммічений
+рядок). Це self-inflicted дрейф лічильника одного юзера, не овербукінг інших.
+
+**Закрито на рівні Redis-черги (2026-09-11):** `pending-join:{eventId}:{userId}` — claim
+через `RedisService.setIfAbsent` (`SET key value EX ttl NX GET`) у `BookingQueueService.
+enqueueJoin`, незалежно від того, чи клієнт надіслав `Idempotency-Key`. Перший виклик
+захоплює слот і ставить job у чергу; будь-який інший виклик для того самого `(eventId,
+userId)`, поки перший ще не осів (CONFIRMED/REJECTED), отримує назад **той самий**
+`requestId` замість того, щоб ставити другу job — тож на цей `(eventId, userId)` у черзі
+ніколи не буває двох одночасних job, і другий `joinEvent` просто не стається. `Booking
+Processor` знімає claim у `finally` (compare-and-delete через `releaseLock`) одразу після
+запису фінального статусу; TTL 60с — запобіжник, якщо воркер впаде до `finally` (див.
+`PENDING_JOIN_TTL_SECONDS`). Залишається живим лише для прямих викликів `EventsService.
+joinEvent`, що обходять чергу (не HTTP-шлях; на нього і покладена ціль цього шару) —
+явна модель `EventParticipant` (див. «Місток у наступні фази») закриє й цей випадок повністю.
 
 Тести: unit-кейси retry/serialization видалено; додано моки `updateMany` (`{ count }`),
 `event.fields`, перевірку `where` умовного інкремента, кейси 409. `pnpm --filter backend test` — 25 зелених.

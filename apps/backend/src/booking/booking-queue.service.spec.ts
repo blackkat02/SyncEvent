@@ -23,12 +23,15 @@ jest.mock('crypto', () => ({
 describe('BookingQueueService', () => {
   let queue: { add: jest.Mock };
   let status: { setPending: jest.Mock; getStatus: jest.Mock };
+  let redis: { setIfAbsent: jest.Mock };
   let service: BookingQueueService;
 
   beforeEach(() => {
     queue = { add: jest.fn() };
     status = { setPending: jest.fn(), getStatus: jest.fn().mockResolvedValue(null) };
-    service = new BookingQueueService(queue as never, status as never);
+    // null = claim succeeded (no one else holds the pending-join slot).
+    redis = { setIfAbsent: jest.fn().mockResolvedValue(null) };
+    service = new BookingQueueService(queue as never, status as never, redis as never);
   });
 
   describe('without an idempotency key', () => {
@@ -69,6 +72,37 @@ describe('BookingQueueService', () => {
     it('never consults existing status (each call is a new request)', async () => {
       await service.enqueueJoin('event-1', 'user-1');
       expect(status.getStatus).not.toHaveBeenCalled();
+    });
+
+    it('claims the pending-join slot for this event+user before enqueueing', async () => {
+      await service.enqueueJoin('event-1', 'user-1');
+
+      expect(redis.setIfAbsent).toHaveBeenCalledWith(
+        'pending-join:event-1:user-1',
+        'fixed-request-id',
+        60,
+      );
+    });
+  });
+
+  describe('when another request for this user+event is already in flight', () => {
+    it('returns the existing requestId without enqueueing a second job', async () => {
+      redis.setIfAbsent.mockResolvedValue('in-flight-request-id');
+
+      const requestId = await service.enqueueJoin('event-1', 'user-1');
+
+      expect(requestId).toBe('in-flight-request-id');
+      expect(status.setPending).not.toHaveBeenCalled();
+      expect(queue.add).not.toHaveBeenCalled();
+    });
+
+    it('piggybacks even when this call carries its own idempotency key', async () => {
+      redis.setIfAbsent.mockResolvedValue('in-flight-request-id');
+
+      const requestId = await service.enqueueJoin('event-1', 'user-1', 'key-xyz');
+
+      expect(requestId).toBe('in-flight-request-id');
+      expect(queue.add).not.toHaveBeenCalled();
     });
   });
 

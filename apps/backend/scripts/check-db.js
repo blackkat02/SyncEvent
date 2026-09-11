@@ -22,18 +22,21 @@ let currentProvider = process.env.DB_PROVIDER;
 
 if (!currentProvider) {
   const envPath = join(appRoot, '.env');
-  if (!existsSync(envPath)) {
-    console.error('❌ Error: DB_PROVIDER not set and .env file not found!');
-    process.exit(1);
+  if (existsSync(envPath)) {
+    const envContent = readFileSync(envPath, 'utf8');
+    const providerMatch = envContent.match(/^DB_PROVIDER\s*=\s*(\w+)/m);
+    currentProvider = providerMatch
+      ? providerMatch[1].trim().toLowerCase()
+      : null;
   }
-  const envContent = readFileSync(envPath, 'utf8');
-  const providerMatch = envContent.match(/^DB_PROVIDER\s*=\s*(\w+)/m);
-  currentProvider = providerMatch
-    ? providerMatch[1].trim().toLowerCase()
-    : null;
 }
 
-currentProvider = currentProvider?.toLowerCase();
+// PostgreSQL is the project's target DB (docs/architecture/
+// booking-concurrency.md §0) and schema.prisma ships committed with
+// provider = "postgresql", so it's the default when nothing else says
+// otherwise. Only testing against MySQL needs an explicit DB_PROVIDER=mysql
+// (or a `DB_PROVIDER=mysql` line in .env).
+currentProvider = (currentProvider ?? 'postgresql').toLowerCase();
 
 if (
   !currentProvider ||
