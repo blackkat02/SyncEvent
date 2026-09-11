@@ -26,7 +26,10 @@ async function main() {
 
   await prisma.event.upsert({
     where: { id: 'event-sold-out' },
-    update: { participants: { set: [{ id: user2.id }, { id: user3.id }] } },
+    update: {
+      seatsTaken: 2,
+      participants: { set: [{ id: user2.id }, { id: user3.id }] },
+    },
     create: {
       id: 'event-sold-out',
       title: 'Sold Out Workshop',
@@ -34,6 +37,7 @@ async function main() {
       date: new Date('2026-12-01T10:00:00Z'),
       location: 'Small Meeting Room',
       capacity: 2,
+      seatsTaken: 2,
       visibility: Visibility.PUBLIC,
       authorId: user1.id,
       participants: { connect: [{ id: user1.id }, { id: user2.id }] },
@@ -50,6 +54,7 @@ async function main() {
       date: new Date('2026-11-15T09:00:00Z'),
       location: 'Convention Center, San Francisco',
       capacity: 500,
+      seatsTaken: 1,
       visibility: Visibility.PUBLIC,
       authorId: user1.id,
       participants: { connect: [{ id: user2.id }] },
@@ -66,8 +71,11 @@ async function main() {
       date: new Date('2026-12-10T15:00:00Z'),
       location: 'Hidden Office',
       capacity: 10,
+      seatsTaken: 1,
       visibility: Visibility.PRIVATE,
       authorId: user3.id,
+      // Match how EventsService.create behaves: the author is a participant.
+      participants: { connect: [{ id: user3.id }] },
     },
   });
 
