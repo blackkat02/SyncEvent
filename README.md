@@ -63,9 +63,9 @@ The overbooking guarantee is **not** on this path — `joinEvent` claims the sea
 
 ### Dual-database support (MySQL / PostgreSQL)
 
-The backend runs against either MySQL or PostgreSQL from the *same* Prisma schema. A small script, `apps/backend/scripts/check-db.js`, runs before every backend container start and:
+The backend runs against either MySQL or PostgreSQL from the *same* Prisma schema. PostgreSQL is the project's target database (see [`docs/architecture/booking-concurrency.md`](docs/architecture/booking-concurrency.md)) and `schema.prisma` ships committed with `provider = "postgresql"`. A small script, `apps/backend/scripts/check-db.js`, runs before every backend container start and:
 
-1. Reads the target provider from `DB_PROVIDER` (`mysql` or `postgresql`).
+1. Reads the target provider from `DB_PROVIDER` (`mysql` or `postgresql`), defaulting to `postgresql` when it isn't set anywhere (env var or `.env`) — so nothing needs to change for the common Postgres case; only opting into MySQL needs an explicit `DB_PROVIDER=mysql`.
 2. Compares it against `prisma/migrations/migration_lock.toml` (the provider the current `migrations/` folder belongs to).
 3. If they differ, moves the current `migrations/` folder into `prisma/.migrations_backup/<provider>/` and restores a matching backup for the target provider if one exists (otherwise Prisma creates fresh migrations).
 4. Rewrites the `provider` field in `schema.prisma` to match the target.
@@ -92,11 +92,19 @@ This keeps the four backend-related services (`backend-init`, `backend`, `backen
 | Microservices| NestJS 11 microservices over Kafka (`analytics-service`, `notifications-service`) |
 | Messaging    | Apache Kafka 3.9 (`kafkajs` / `@nestjs/microservices`) |
 | Cache / locks| Redis 7 (`ioredis`, `cache-manager`) |
-| Databases    | MySQL 8.0 or PostgreSQL 16 (switchable) |
+| Databases    | PostgreSQL 16 (default/target) or MySQL 8.0 (switchable) |
 | Admin UI     | pgAdmin 4 (PostgreSQL profile only) |
 | Shared       | TypeScript, Yup — published as an internal workspace package |
 | Testing      | Jest + ts-jest (backend unit tests) |
 | Infra        | Docker, Docker Compose (profiles), pnpm workspaces |
+
+## Engineering process: design docs & decision log
+
+Non-trivial or cross-cutting changes go through a written design doc *before* the code — problem statement, options considered (and why the others were rejected), the chosen architecture, and a phased rollout plan with checkboxes. As the work actually ships, the doc gets a dated, append-only decision log: what landed, what broke, how it was fixed, what's still open — so the document stays the source of truth instead of drifting from the code.
+
+The concrete example in this repo: [`docs/architecture/booking-concurrency.md`](docs/architecture/booking-concurrency.md) — the redesign of the event-booking race condition (Postgres conditional update + Redis queue + Kafka outbox). It captures the race-condition theory, why the original `Serializable` + retry approach was fragile, the target architecture, a 4-phase plan, and a running log of what was actually verified live (including bugs found only once real infra was up). [`docs/SESSION-HANDOFF.md`](docs/SESSION-HANDOFF.md) complements it as a resumable context snapshot — status, open problems, next steps — for picking the work back up in a later session.
+
+This mirrors the "design doc" / RFC practice used at Google, Amazon, GitLab and most engineering orgs of any size for anything non-trivial, and the lighter-weight ADR (Architecture Decision Record) pattern for single, atomic decisions — writing the decision down is cheaper than reverting code built on the wrong one.
 
 ## Prerequisites
 
@@ -120,11 +128,18 @@ Requires a MySQL or PostgreSQL server already running on your machine (or reacha
 pnpm install
 ```
 
-Set up `apps/backend/.env` (separate from the root `.env` used by Docker) with your local `DATABASE_URL` and `DB_PROVIDER`, then generate the Prisma Client and push the schema:
+Set up `apps/backend/.env` (separate from the root `.env` used by Docker) with your local `DATABASE_URL`, then generate the Prisma Client and push the schema:
 
 ```bash
 pnpm --filter backend exec prisma generate
 pnpm --filter backend exec prisma db push
+```
+
+That's enough for PostgreSQL — `schema.prisma` is already committed for it. To run against MySQL instead, switch the schema and its migrations first (and back again when you're done):
+
+```bash
+DB_PROVIDER=mysql node apps/backend/scripts/check-db.js       # switch to MySQL
+DB_PROVIDER=postgresql node apps/backend/scripts/check-db.js  # switch back
 ```
 
 Then start both apps in parallel:

@@ -107,15 +107,22 @@
 4. **Consumer idempotency — тільки in-memory** (`SeenMessages`, process-local). Після рестарту —
    переобробка. Прийнятно поки хендлери лише логують. Коли зʼявиться реальний sink (БД/лист) —
    перенести на Redis `SET NX` або таблицю `processed_messages`.
-5. **Residual race в `joinEvent`:** два абсолютно одночасні запити ТОГО САМОГО юзера можуть
-   пере-інкрементити `seatsTaken` на 1 (складений PK `_JoinedEvents` не дає дублю членства; це дрейф
-   лічильника одного юзера, НЕ овербукінг інших). Закривається явною моделлю `EventParticipant`.
+5. ~~**Residual race в `joinEvent`:**~~ — ✅ **закрито на рівні черги 2026-09-11**: `pending-join:
+   {eventId}:{userId}` claim (`RedisService.setIfAbsent`) у `BookingQueueService.enqueueJoin` —
+   другий запит того самого юзера на ту саму подію отримує назад той самий `requestId` замість
+   другої job, незалежно від `Idempotency-Key`. Деталі в доці (§13, «Закрито на рівні Redis-черги»).
+   Лишається живим тільки для прямих викликів `EventsService.joinEvent` в обхід черги (не HTTP-шлях) —
+   те й закриє явна модель `EventParticipant`.
 6. **`prisma db push` не запускає backfill з міграцій.** Контейнер робить `db push` → нова колонка/таблиця
    створюється, але SQL-backfill із файлів міграцій НЕ виконується. На чистій БД + seed усе ок. Для
    наявних даних — виконати backfill вручну (SQL у §13 доку) або перевести init на `prisma migrate deploy`.
-7. **MySQL vs Postgres:** `schema.prisma` закомічено як `provider = "mysql"`, `check-db.js` міняє на
-   старті контейнера. Міграції — Postgres. Outbox-міграція — Postgres SQL (`JSONB`). `Json`-тип працює на
-   обох. Фаза 4 прибирає MySQL повністю.
+7. ~~**MySQL vs Postgres:** `schema.prisma` закомічено як `provider = "mysql"`~~ — ✅ **виправлено
+   2026-09-11**: тепер закомічено напряму як `provider = "postgresql"` (цільова БД); `check-db.js`
+   дефолтить у `postgresql`, коли `DB_PROVIDER` ніде не задано, і підміняє схему/`migrations/` лише
+   коли явно просять `mysql`. Раніше кожен host-side скрипт (seed, smoke-тест, e2e) вимагав ручного
+   `DB_PROVIDER=postgresql node scripts/check-db.js` перед першим запуском — тепер це потрібно лише
+   якщо схема зараз перемкнута на MySQL. Міграції — Postgres. Outbox-міграція — Postgres SQL (`JSONB`).
+   `Json`-тип працює на обох. Фаза 4 (окремо) прибирає підтримку MySQL повністю — не зроблено.
 8. **WS-канал не зроблено** — фронт лише polling (працює). Окрема більша задача (gateway + socket.io + фронт).
 9. **Образи мікросервісів роздуті** — роблять повний monorepo `pnpm install` (тягнуть і backend-залежності).
    Оптимізувати `pnpm deploy` / multi-stage пізніше.
@@ -129,7 +136,8 @@
    (`docs/architecture/booking-concurrency.md`).
 2. **Ревʼю + commit** усього working tree. ← **наступний крок**
 3. **Явна модель `EventParticipant { eventId, userId, @@id([eventId,userId]) }`** (місток до Фази 3).
-   Потрібна для вейтлісту й закриває residual race (#5). Велика зміна: implicit M:N → explicit,
+   Потрібна для вейтлісту й закриває останній вузький кут residual race (#5 — прямі виклики
+   `EventsService.joinEvent` в обхід черги; сам HTTP/черга-шлях уже закрито). Велика зміна: implicit M:N → explicit,
    `connect/disconnect` → `create/delete`, оновити `findAll`/`findOne`/`findMyCalendar`/`seed`/специ.
    Використати `@map`/`@@map` щоб зафіксувати фізичні імена колонок (обговорено — уникає «тихого свапу»
    як з `A`/`B`).

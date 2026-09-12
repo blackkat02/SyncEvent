@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
-import { EVENT_BOOKING_QUEUE } from './booking.constants';
+import { EVENT_BOOKING_QUEUE, pendingJoinKey } from './booking.constants';
 import { RedisService } from '../redis/redis.service';
 import { EventsService } from '../events/events.service';
 import { BookingStatusService } from './booking-status.service';
@@ -57,6 +57,12 @@ export class BookingProcessor extends WorkerHost {
       });
     } finally {
       await this.redis.releaseLock(lockKey, token);
+      // Request has settled (CONFIRMED or REJECTED) — release the
+      // per-(event,user) claim so a legitimate future join by this same
+      // user (e.g. after leaving) isn't blocked until the TTL expires.
+      // Compare-and-delete (via releaseLock's token semantics) so we never
+      // clobber a newer claim than the one this job made.
+      await this.redis.releaseLock(pendingJoinKey(eventId, userId), requestId);
     }
   }
 }

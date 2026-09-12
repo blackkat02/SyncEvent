@@ -9,12 +9,13 @@ import { EventsService } from '../src/events/events.service';
  * database (not mocked Prisma), because the guarantee lives in Postgres
  * row-locking behaviour that a mock cannot exercise.
  *
- * Prerequisite: a Postgres instance reachable via DATABASE_URL, migrated
- * with the `postgresql` provider (schema.prisma ships committed as
- * `mysql` — see check-db.js). From apps/backend:
+ * Prerequisite: a Postgres instance reachable via DATABASE_URL. schema.prisma
+ * ships committed with the `postgresql` provider — the check-db.js switch
+ * below is only needed if you'd previously flipped it to `mysql` for local
+ * testing and need to switch back. From apps/backend:
  *
  *   docker compose --profile postgres up -d db-postgres
- *   DB_PROVIDER=postgresql node scripts/check-db.js
+ *   DB_PROVIDER=postgresql node scripts/check-db.js   # only if currently on mysql
  *   pnpm exec prisma generate
  *   pnpm exec prisma db push
  *   DATABASE_URL=postgresql://<user>:<password>@localhost:<port>/<db>?schema=public pnpm test:e2e

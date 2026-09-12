@@ -5,10 +5,10 @@
     "rootDir": ".",
     "module": "NodeNext",
     "target": "ES2023",
-    "types": ["node"],
+    "types": ["node", "jest"],
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true
   },
-  "include": ["src/**/*", "prisma/**/*", "env.ts"],
+  "include": ["src/**/*", "prisma/**/*", "test/**/*", "env.ts"],
   "exclude": ["node_modules", "dist"],
 }

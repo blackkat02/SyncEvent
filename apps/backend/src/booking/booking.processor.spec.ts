@@ -58,6 +58,10 @@ describe('BookingProcessor', () => {
       userId: 'user-1',
     });
     expect(redis.releaseLock).toHaveBeenCalledWith('lock:event:event-1', 'token-1');
+    expect(redis.releaseLock).toHaveBeenCalledWith(
+      'pending-join:event-1:user-1',
+      'req-1',
+    );
   });
 
   it('records REJECTED (not a thrown failure) when joinEvent rejects, and still releases the lock', async () => {
@@ -73,9 +77,13 @@ describe('BookingProcessor', () => {
       reason: 'Event is full',
     });
     expect(redis.releaseLock).toHaveBeenCalledWith('lock:event:event-1', 'token-1');
+    expect(redis.releaseLock).toHaveBeenCalledWith(
+      'pending-join:event-1:user-1',
+      'req-1',
+    );
   });
 
-  it('throws (so BullMQ retries) when the per-event lock is not acquired, without touching status', async () => {
+  it('throws (so BullMQ retries) when the per-event lock is not acquired, without touching status or the pending-join claim', async () => {
     redis.acquireLock.mockResolvedValue(null);
 
     await expect(processor.process(makeJob())).rejects.toThrow(

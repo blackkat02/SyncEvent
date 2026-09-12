@@ -62,7 +62,7 @@ export class EventsService {
           // `capacity + 1` people (organizer + capacity joiners).
           seatsTaken: 1,
           participants: {
-            connect: { id: userId },
+            create: { userId },
           },
         },
         include: {
@@ -100,7 +100,7 @@ export class EventsService {
           author: { select: { id: true, email: true } },
           _count: { select: { participants: true } },
           participants: currentUserId
-            ? { where: { id: currentUserId }, select: { id: true } }
+            ? { where: { userId: currentUserId }, select: { userId: true } }
             : false,
         },
         orderBy: { createdAt: 'desc' },
@@ -134,7 +134,11 @@ export class EventsService {
       where: { id },
       include: {
         author: { select: { id: true, email: true, displayName: true } },
-        participants: { select: { id: true, email: true, displayName: true } },
+        participants: {
+          include: {
+            user: { select: { id: true, email: true, displayName: true } },
+          },
+        },
         _count: { select: { participants: true } },
       },
     });
@@ -143,26 +147,48 @@ export class EventsService {
 
     return {
       ...event,
+      // Flatten EventParticipant[] back to a plain user list — keeps the
+      // response contract (IEventResponse.participants: IParticipant[])
+      // unchanged by the implicit->explicit join-model migration.
+      participants: event.participants.map((p) => p.user),
       isJoined: currentUserId
-        ? event.participants.some((p: { id: string }) => p.id === currentUserId)
+        ? event.participants.some((p) => p.userId === currentUserId)
         : false,
     };
   }
 
   async joinEvent(eventId: string, userId: string) {
     return this.prisma.$transaction(async (tx) => {
-      // 1. Один атомарний UPDATE займає місце, але спрацьовує лише якщо:
-      //      • користувача ще немає серед учасників  (participants: none)
-      //      • є вільне місце: подія безлімітна АБО seatsTaken < capacity
-      //    Паралельні join'и до однієї події серіалізуються на рядковому
-      //    локі `Event`. Той, хто прийшов другим за останнє місце, після
-      //    зняття локу перечитує рядок і бачить seatsTaken === capacity,
-      //    тож його updateMany оновлює 0 рядків. Овербукінгу немає без
-      //    Serializable і без retry.
-      const { count } = await tx.event.updateMany({
+      // 1. Лочимо рядок "Event" — серіалізує конкурентні join/leave на цій
+      //    же події (той самий лок, що й у leaveEvent).
+      await tx.$executeRaw`SELECT id FROM "Event" WHERE id = ${eventId} FOR UPDATE`;
+
+      const event = await tx.event.findUnique({
+        where: { id: eventId },
+        select: { id: true },
+      });
+      if (!event) throw new NotFoundException('Event not found');
+
+      // 2. Членство застовплюємо через composite PK (eventId,userId) —
+      //    реальний DB-constraint, а не read-then-check підзапит. Дублікат
+      //    конфліктує атомарно на рівні БД, тож це закриває residual-гонку
+      //    навіть для прямих викликів joinEvent в обхід черги/Redis-claim'у
+      //    (docs/architecture/booking-concurrency.md §13).
+      const { count: joined } = await tx.eventParticipant.createMany({
+        data: [{ eventId, userId }],
+        skipDuplicates: true,
+      });
+      if (joined === 0) {
+        throw new ConflictException('You are already a participant');
+      }
+
+      // 3. Членство саме собою місця не бронює — лічильник і далі
+      //    захищений умовним UPDATE. Кидок звідси відкотить усю
+      //    транзакцію, тобто й insert з кроку 2 — тож "зайвого" учасника
+      //    без місця не залишиться.
+      const { count: seated } = await tx.event.updateMany({
         where: {
           id: eventId,
-          participants: { none: { id: userId } },
           OR: [
             { capacity: null },
             { seatsTaken: { lt: this.prisma.event.fields.capacity } },
@@ -170,31 +196,9 @@ export class EventsService {
         },
         data: { seatsTaken: { increment: 1 } },
       });
-
-      // 2. Лічильник не змінився — з'ясовуємо причину дешевим читанням.
-      if (count === 0) {
-        const event = await tx.event.findUnique({
-          where: { id: eventId },
-          select: {
-            id: true,
-            participants: { where: { id: userId }, select: { id: true } },
-          },
-        });
-
-        if (!event) throw new NotFoundException('Event not found');
-        if (event.participants.length > 0) {
-          throw new ConflictException('You are already a participant');
-        }
+      if (seated === 0) {
         throw new ConflictException('Event is full');
       }
-
-      // 3. Місце за нами — фіксуємо членство. Кидок звідси відкотив би
-      //    інкремент разом із транзакцією, тому connect іде останнім.
-      const updated = await tx.event.update({
-        where: { id: eventId },
-        data: { participants: { connect: { id: userId } } },
-        include: { _count: { select: { participants: true } } },
-      });
 
       // Факт «користувач приєднався» — у тій самій транзакції (outbox).
       await this.writeOutbox(tx, EventTopics.USER_JOINED, eventId, {
@@ -203,47 +207,41 @@ export class EventsService {
         joinedAt: new Date().toISOString(),
       });
 
-      return updated;
+      return tx.event.findUniqueOrThrow({
+        where: { id: eventId },
+        include: { _count: { select: { participants: true } } },
+      });
     });
   }
 
   async leaveEvent(eventId: string, userId: string) {
     return this.prisma.$transaction(async (tx) => {
-      // 1. Лочимо рядок "Event" (нашу власну модель, а не фізичні колонки
-      //    implicit-relation join-таблиці — їх іменування "A"/"B" залежить
-      //    від алфавітного порядку назв моделей і може тихо змінитись при
-      //    перейменуванні Event/User, а raw SQL на них це не перевірить).
-      //    Лок серіалізує конкурентні join/leave на цій же події так само,
-      //    як рядковий лок від updateMany в joinEvent.
+      // 1. Лочимо рядок "Event" — серіалізує конкурентні join/leave на цій
+      //    же події так само, як умовний UPDATE в joinEvent.
       await tx.$executeRaw`SELECT id FROM "Event" WHERE id = ${eventId} FOR UPDATE`;
 
       const event = await tx.event.findUnique({
         where: { id: eventId },
-        select: {
-          authorId: true,
-          participants: { where: { id: userId }, select: { id: true } },
-        },
+        select: { authorId: true },
       });
       if (!event) throw new NotFoundException('Event not found');
       if (event.authorId === userId) {
         throw new ForbiddenException('The organizer cannot leave their own event');
       }
-      if (event.participants.length === 0) {
+
+      // 2. Членство знімаємо через explicit-модель EventParticipant — сама
+      //    умова (eventId,userId) в WHERE і є перевіркою "чи був учасником",
+      //    без окремого read перед мутацією (composite PK гарантує, що це
+      //    рівно 0 або 1 рядок).
+      const { count } = await tx.eventParticipant.deleteMany({
+        where: { eventId, userId },
+      });
+      if (count === 0) {
         throw new ConflictException('You are not a participant of this event');
       }
 
-      // 2. Членство знімаємо через Prisma Client API (не сирий DELETE по
-      //    _JoinedEvents), тож правильні фізичні колонки обирає сама Prisma.
-      //    Гонки тут немає — лок вище вже серіалізував конкурентні виклики.
-      await tx.event.update({
-        where: { id: eventId },
-        data: { participants: { disconnect: { id: userId } } },
-      });
-
       // 3. Місце звільнилося — знімаємо його, не пускаючи лічильник у мінус
-      //    (симетрично до joinEvent). Це raw SQL лише по "Event"/"seatsTaken" —
-      //    нашим власним іменам, видимим у звичайній міграції при рененймі,
-      //    на відміну від невидимих internal-колонок join-таблиці.
+      //    (симетрично до joinEvent).
       await tx.$executeRaw`
         UPDATE "Event" SET "seatsTaken" = GREATEST("seatsTaken" - 1, 0) WHERE id = ${eventId}
       `;
@@ -264,7 +262,7 @@ export class EventsService {
   async findMyCalendar(userId: string) {
     const events = await this.prisma.event.findMany({
       where: {
-        OR: [{ authorId: userId }, { participants: { some: { id: userId } } }],
+        OR: [{ authorId: userId }, { participants: { some: { userId } } }],
       },
       include: {
         author: { select: { id: true, email: true, displayName: true } },

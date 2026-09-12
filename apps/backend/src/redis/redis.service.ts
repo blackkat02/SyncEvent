@@ -36,6 +36,21 @@ export class RedisService implements OnModuleDestroy {
     await this.client.eval(luaScript, 1, key, token);
   }
 
+  /**
+   * Atomically claims `key` with `value` unless it's already held, via
+   * `SET key value EX ttlSeconds NX GET` (Redis >= 6.2's combined form).
+   * Returns `null` when the claim succeeded (key was absent and is now set);
+   * returns the *existing* value when someone else already holds it, so the
+   * caller can piggyback on whatever they claimed instead of overwriting it.
+   */
+  async setIfAbsent(
+    key: string,
+    value: string,
+    ttlSeconds: number,
+  ): Promise<string | null> {
+    return this.client.set(key, value, 'EX', ttlSeconds, 'NX', 'GET');
+  }
+
   async onModuleDestroy() {
     await this.client.quit();
   }

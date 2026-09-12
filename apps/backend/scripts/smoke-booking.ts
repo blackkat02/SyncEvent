@@ -18,7 +18,9 @@
  * Prerequisites (from apps/backend, Node >= 22.12):
  *
  *   docker compose --profile postgres up -d db-postgres redis     # + kafka for SMOKE_KAFKA=1
- *   DB_PROVIDER=postgresql node scripts/check-db.js
+ *   # schema.prisma ships committed with provider = "postgresql" — skip this
+ *   # unless you'd previously switched to MySQL and need to switch back:
+ *   #   DB_PROVIDER=postgresql node scripts/check-db.js
  *   pnpm exec prisma generate
  *   pnpm exec prisma db push
  *   DATABASE_URL=postgresql://user:password@localhost:5432/syncevent_db?schema=public \
