@@ -12,6 +12,11 @@ enum Visibility {
   PRIVATE
 }
 
+enum ParticipantStatus {
+  CONFIRMED
+  WAITLISTED
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -21,8 +26,8 @@ model User {
   refreshToken String?  @db.Text
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  createdEvents Event[] @relation("CreatedEvents")
-  joinedEvents  Event[] @relation("JoinedEvents")
+  createdEvents  Event[]            @relation("CreatedEvents")
+  participations EventParticipant[]
 }
 
 /// Transactional outbox: a domain-event row is written in the SAME
@@ -42,19 +47,37 @@ model OutboxEvent {
 }
 
 model Event {
-  id           String     @id @default(cuid())
+  id           String             @id @default(cuid())
   title        String
   description  String?
   date         DateTime
   location     String
   capacity     Int?
-  seatsTaken   Int        @default(0)
-  visibility   Visibility @default(PUBLIC)
+  seatsTaken   Int                @default(0)
+  visibility   Visibility         @default(PUBLIC)
   authorId     String
-  author       User       @relation("CreatedEvents", fields: [authorId], references: [id])
-  participants User[]     @relation("JoinedEvents")
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  author       User               @relation("CreatedEvents", fields: [authorId], references: [id])
+  participants EventParticipant[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
   @@index([authorId])
   @@index([visibility])
+}
+
+/// Explicit join model for event participation (replaces the implicit
+/// User<->Event M:N table). A composite PK is a real DB constraint the app
+/// can rely on for atomic join dedup (see EventsService.joinEvent), unlike
+/// re-checking a `participants: none` subquery inside a conditional UPDATE.
+/// `status` is the storage Phase 3 (waitlist) needs for WAITLISTED rows,
+/// added now so that feature won't require another structural migration.
+model EventParticipant {
+  eventId  String
+  userId   String
+  status   ParticipantStatus @default(CONFIRMED)
+  joinedAt DateTime          @default(now())
+  event    Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, userId])
+  @@index([userId])
 }

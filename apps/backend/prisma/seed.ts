@@ -74,10 +74,13 @@ async function main() {
     update: {
       seatsTaken: 2,
       // Must match `create` below — the author (user1) is always a
-      // participant (same invariant `EventsService.create` enforces), and
-      // `set` replaces the whole relation on every re-seed, so drifting from
-      // `create`'s list here would silently drop the author on re-seed.
-      participants: { set: [{ id: user1.id }, { id: user2.id }] },
+      // participant (same invariant `EventsService.create` enforces).
+      // Explicit join model has no "set" (replace-whole-relation) shorthand,
+      // so re-seeding clears and recreates the rows instead.
+      participants: {
+        deleteMany: {},
+        createMany: { data: [{ userId: user1.id }, { userId: user2.id }] },
+      },
     },
     create: {
       id: 'event-sold-out',
@@ -89,7 +92,7 @@ async function main() {
       seatsTaken: 2,
       visibility: Visibility.PUBLIC,
       authorId: user1.id,
-      participants: { connect: [{ id: user1.id }, { id: user2.id }] },
+      participants: { create: [{ userId: user1.id }, { userId: user2.id }] },
     },
   });
 
@@ -106,7 +109,7 @@ async function main() {
       seatsTaken: 1,
       visibility: Visibility.PUBLIC,
       authorId: user1.id,
-      participants: { connect: [{ id: user2.id }] },
+      participants: { create: [{ userId: user2.id }] },
     },
   });
 
@@ -124,7 +127,12 @@ async function main() {
     update: {
       capacity: 6,
       seatsTaken: raceSeatParticipants.length,
-      participants: { set: raceSeatParticipants.map((u) => ({ id: u.id })) },
+      participants: {
+        deleteMany: {},
+        createMany: {
+          data: raceSeatParticipants.map((u) => ({ userId: u.id })),
+        },
+      },
     },
     create: {
       id: 'event-race-seat',
@@ -139,7 +147,9 @@ async function main() {
       seatsTaken: raceSeatParticipants.length,
       visibility: Visibility.PUBLIC,
       authorId: user1.id,
-      participants: { connect: raceSeatParticipants.map((u) => ({ id: u.id })) },
+      participants: {
+        create: raceSeatParticipants.map((u) => ({ userId: u.id })),
+      },
     },
   });
 
@@ -160,7 +170,10 @@ async function main() {
       capacity: 10,
       seatsTaken: duplicateCheckParticipants.length,
       participants: {
-        set: duplicateCheckParticipants.map((u) => ({ id: u.id })),
+        deleteMany: {},
+        createMany: {
+          data: duplicateCheckParticipants.map((u) => ({ userId: u.id })),
+        },
       },
     },
     create: {
@@ -179,7 +192,7 @@ async function main() {
       visibility: Visibility.PUBLIC,
       authorId: user1.id,
       participants: {
-        connect: duplicateCheckParticipants.map((u) => ({ id: u.id })),
+        create: duplicateCheckParticipants.map((u) => ({ userId: u.id })),
       },
     },
   });
@@ -198,7 +211,7 @@ async function main() {
       visibility: Visibility.PRIVATE,
       authorId: user3.id,
       // Match how EventsService.create behaves: the author is a participant.
-      participants: { connect: [{ id: user3.id }] },
+      participants: { create: [{ userId: user3.id }] },
     },
   });
 

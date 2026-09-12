@@ -35,13 +35,13 @@ export class BookingQueueService {
    *
    * Without a client key each call mints a fresh `randomUUID()`. A genuine
    * double-click (or two browser tabs) would then enqueue two jobs; both are
-   * still harmless for *other* users — they serialize on the same per-event
-   * Redis lock and the same guarded Postgres UPDATE — but two jobs for the
-   * *same* user racing that lock is exactly the narrow self-inflicted
-   * `seatsTaken` drift flagged in the design doc (§2.3/§13): the second job's
-   * `participants: { none }` check can lose to the first job's just-committed
-   * row. The `pending-join:{eventId}:{userId}` claim below closes that gap
-   * independently of whether the client sends an idempotency key at all.
+   * harmless correctness-wise — `EventsService.joinEvent` dedupes membership
+   * on `EventParticipant`'s composite PK (eventId,userId), a real DB
+   * constraint, so the second job just gets a clean "already a participant"
+   * conflict instead of drifting `seatsTaken` (design doc §13). The
+   * `pending-join:{eventId}:{userId}` claim below exists to avoid that wasted
+   * duplicate job/DB round-trip in the first place, independently of whether
+   * the client sends an idempotency key at all.
    */
   async enqueueJoin(
     eventId: string,

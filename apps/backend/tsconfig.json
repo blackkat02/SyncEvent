@@ -9,6 +9,6 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true
   },
-  "include": ["src/**/*", "prisma/**/*", "env.ts"],
+  "include": ["src/**/*", "prisma/**/*", "test/**/*", "env.ts"],
   "exclude": ["node_modules", "dist"],
 }
