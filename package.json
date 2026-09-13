@@ -30,8 +30,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "tsup": "^8.0.0",
-    "yup": "^1.7.1"
+    "tsup": "^8.0.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -43,4 +42,3 @@
     ]
   }
 }
-

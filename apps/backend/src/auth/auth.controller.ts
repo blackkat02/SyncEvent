@@ -26,7 +26,7 @@ import {
   type UserProfile,
   type RegisterInput,
 } from '@syncevent/shared';
-import { YupValidationPipe } from '../common/pipes/yup-validation.pipe';
+import { ZodValidationPipe } from 'nestjs-zod';
 import { GetUser } from '../common/decorators/get-user.decorator';
 import { Request, Response } from 'express';
 
@@ -60,7 +60,7 @@ export class AuthController {
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
   @ApiResponse({ status: 201, description: 'User successfully registered.' })
-  @UsePipes(new YupValidationPipe(registerSchema))
+  @UsePipes(new ZodValidationPipe(registerSchema))
   async register(
     @Body() registerDto: RegisterInput,
     @Res({ passthrough: true }) res: Response,
@@ -78,7 +78,7 @@ export class AuthController {
   @Post('login')
   @ApiOperation({ summary: 'Login user and return tokens' })
   @ApiResponse({ status: 200, description: 'Return access token.' })
-  @UsePipes(new YupValidationPipe(loginSchema))
+  @UsePipes(new ZodValidationPipe(loginSchema))
   async login(
     @Body() loginDto: LoginInput,
     @Res({ passthrough: true }) res: Response,
