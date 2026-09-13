@@ -23,22 +23,37 @@ model User {
   password     String
   displayName  String?
   avatarUrl    String?
-  refreshToken String?  @db.Text
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
   createdEvents  Event[]            @relation("CreatedEvents")
   participations EventParticipant[]
+  refreshTokens  RefreshToken[]
 }
 
-/// Transactional outbox: a domain-event row is written in the SAME
-/// transaction as the state change that produced it, then a relay publishes
-/// it to Kafka and stamps `sentAt`. Guarantees at-least-once delivery even
-/// if the process dies between commit and publish. No FK to Event on
-/// purpose — the row (e.g. event.deleted) must outlive the event.
+model RefreshToken {
+  id             String    @id @default(cuid())
+  userId         String
+  tokenHash      String    @db.Text
+  familyId       String
+  revoked        Boolean   @default(false)
+  expiresAt      DateTime
+  createdAt      DateTime  @default(now())
+  userAgent      String?
+
+  supersededAt   DateTime?
+  supersededById String?
+
+  accessJti      String?
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+  @@index([userId])
+}
+
 model OutboxEvent {
   id        String    @id @default(cuid())
   topic     String
-  key       String // Kafka partition key — always the eventId (per-event ordering)
+  key       String 
   payload   Json
   createdAt DateTime  @default(now())
   sentAt    DateTime?
@@ -64,12 +79,6 @@ model Event {
   @@index([visibility])
 }
 
-/// Explicit join model for event participation (replaces the implicit
-/// User<->Event M:N table). A composite PK is a real DB constraint the app
-/// can rely on for atomic join dedup (see EventsService.joinEvent), unlike
-/// re-checking a `participants: none` subquery inside a conditional UPDATE.
-/// `status` is the storage Phase 3 (waitlist) needs for WAITLISTED rows,
-/// added now so that feature won't require another structural migration.
 model EventParticipant {
   eventId  String
   userId   String
