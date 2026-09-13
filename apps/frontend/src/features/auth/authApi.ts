@@ -10,8 +10,10 @@ interface ApiWrapper<T> {
   message: string;
 }
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
 const baseQuery = fetchBaseQuery({
-  baseUrl: import.meta.env.VITE_API_URL || 'http://localhost:3000/api',
+  baseUrl: API_BASE_URL,
   credentials: 'include',
   prepareHeaders: (headers, { getState }) => {
     const token = (getState() as RootState).auth.accessToken;
@@ -21,6 +23,33 @@ const baseQuery = fetchBaseQuery({
     return headers;
   },
 });
+
+let refreshPromise: Promise<string | null> | null = null;
+
+async function refreshAccessToken(): Promise<string | null> {
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include',
+        });
+
+        if (!response.ok) return null;
+
+        const jsonResponse = await response.json();
+        return jsonResponse.data.accessToken as string;
+      } catch (fetchError) {
+        console.error('🚨 Network error during token refresh:', fetchError);
+        return null;
+      } finally {
+        refreshPromise = null;
+      }
+    })();
+  }
+
+  return refreshPromise;
+}
 
 const baseQueryWithReauth: BaseQueryFn<
   string | FetchArgs,
@@ -33,35 +62,24 @@ const baseQueryWithReauth: BaseQueryFn<
   if (result.error && result.error.status === 401) {
     console.warn('⚠️ Access token expired. Attempting to refresh...');
 
-    try {
-      const response = await fetch('http://localhost:3000/api/auth/refresh', {
-        method: 'POST',
-        credentials: 'include',
-      });
+    const accessToken = await refreshAccessToken();
 
-      if (response.ok) {
-        const jsonResponse = await response.json()
-        const { accessToken } = jsonResponse.data
+    if (accessToken) {
+      api.dispatch(updateAccessToken({ accessToken }))
 
-        api.dispatch(updateAccessToken({ accessToken }))
+      const reauthedArgs = typeof args === 'string'
+        ? { url: args, headers: { authorization: `Bearer ${accessToken}` } }
+        : {
+          ...args,
+          headers: {
+            ...(args.headers || {}),
+            authorization: `Bearer ${accessToken}`,
+          },
+        }
 
-        const reauthedArgs = typeof args === 'string'
-          ? { url: args, headers: { authorization: `Bearer ${accessToken}` } }
-          : {
-            ...args,
-            headers: {
-              ...(args.headers || {}),
-              authorization: `Bearer ${accessToken}`,
-            },
-          }
-
-        result = await baseQuery(reauthedArgs, api, extraOptions)
-      } else {
-        api.dispatch(logout())
-      }
-    } catch (fetchError) {
-      console.error('🚨 Network error during token refresh:', fetchError);
-      api.dispatch(logout());
+      result = await baseQuery(reauthedArgs, api, extraOptions)
+    } else {
+      api.dispatch(logout())
     }
   }
 

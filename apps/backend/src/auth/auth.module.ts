@@ -5,6 +5,7 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { AccessTokenBlocklistService } from './access-token-blocklist.service';
 
 @Module({
   imports: [
@@ -16,7 +17,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy], // Додали сюди
+  providers: [AuthService, JwtStrategy, AccessTokenBlocklistService],
   exports: [AuthService],
 })
 export class AuthModule {}

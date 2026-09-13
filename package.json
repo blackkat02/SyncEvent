@@ -10,6 +10,7 @@
     "lint": "pnpm -r lint",
     "db:generate": "pnpm --filter backend exec prisma generate",
     "db:studio": "pnpm --filter backend exec prisma studio",
+    "db:migr": "pnpm --filter backend exec prisma migrate dev",
     "db:seed": "pnpm --filter backend run db:seed",
     "test:seeded": "pnpm --filter backend run test:seeded",
     "smoke:booking": "pnpm --filter backend run smoke:booking",

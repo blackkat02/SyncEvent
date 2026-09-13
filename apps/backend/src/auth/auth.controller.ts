@@ -48,6 +48,15 @@ export class AuthController {
     });
   }
 
+  private clearRefreshTokenCookie(res: Response) {
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    });
+  }
+
   @Post('register')
   @ApiOperation({ summary: 'Register a new user' })
   @ApiResponse({ status: 201, description: 'User successfully registered.' })
@@ -108,13 +117,17 @@ export class AuthController {
       const payload = await this.jwtService.verifyAsync<{
         sub: string;
         email: string;
+        familyId: string;
       }>(refreshToken, {
         secret: process.env.JWT_REFRESH_SECRET || 'refresh_secret',
       });
 
-      const newTokens = await this.authService.refreshTokens(payload.sub, refreshToken);
+      const newTokens = await this.authService.refreshTokens(
+        payload.sub,
+        refreshToken,
+        payload.familyId,
+      );
 
-      // Оновлюємо куку новим Refresh-токеном (Rotation паттерн)
       this.setRefreshTokenCookie(res, newTokens.refreshToken);
 
       return {
@@ -123,5 +136,50 @@ export class AuthController {
     } catch {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
+  }
+
+  @Post('logout')
+  @ApiOperation({ summary: 'Revoke the current refresh-token session and clear its cookie' })
+  @ApiResponse({ status: 200, description: 'Logged out.' })
+  async logout(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const refreshToken = req.cookies?.['refreshToken'];
+    this.clearRefreshTokenCookie(res);
+
+    if (refreshToken) {
+      try {
+        const payload = await this.jwtService.verifyAsync<{
+          sub: string;
+          email: string;
+          familyId: string;
+        }>(refreshToken, {
+          secret: process.env.JWT_REFRESH_SECRET || 'refresh_secret',
+        });
+
+        await this.authService.logout(payload.sub, payload.familyId);
+      } catch {
+        // Invalid/expired token: nothing to revoke.
+      }
+    }
+
+    return { success: true };
+  }
+
+  @Post('logout-all')
+  @ApiBearerAuth()
+  @UseGuards(AuthGuard('jwt'))
+  @ApiOperation({
+    summary: 'Revoke every session for this user and blocklist their current access tokens',
+  })
+  @ApiResponse({ status: 200, description: 'Logged out everywhere.' })
+  async logoutAll(
+    @GetUser('id') userId: string,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    this.clearRefreshTokenCookie(res);
+    await this.authService.logoutAllDevices(userId);
+    return { success: true };
   }
 }
