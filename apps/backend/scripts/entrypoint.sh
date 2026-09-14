@@ -19,19 +19,12 @@ pnpm --filter backend exec prisma generate --schema="$SCHEMA"
 case "$MODE" in
   init)
     echo ">> [entrypoint] Running migrations + seed"
-    # --accept-data-loss: `db push` (not `migrate deploy`) diffs live schema
-    # vs schema.prisma and refuses non-interactively on any destructive change
-    # (e.g. dropping the old implicit "_JoinedEvents" table in favour of the
-    # explicit EventParticipant model) without this flag. Fine for local/dev
-    # data; db push also does NOT run migration-file backfills (known gap,
-    # docs/SESSION-HANDOFF.md #6) — seed.ts recreates the fixtures right after.
-    pnpm --filter backend exec prisma db push --schema="$SCHEMA" --accept-data-loss
+    pnpm --filter backend exec prisma migrate deploy --schema="$SCHEMA"
     pnpm --filter backend exec ts-node /app/apps/backend/prisma/seed.ts
     echo ">> [entrypoint] Init complete"
     ;;
   serve)
     echo ">> [entrypoint] Starting server"
-    # exec замінює sh на node-процес — сигнали (SIGTERM) доходять напряму
     exec node /app/apps/backend/dist/src/main.js
     ;;
   *)

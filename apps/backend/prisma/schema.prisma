@@ -17,6 +17,12 @@ enum ParticipantStatus {
   WAITLISTED
 }
 
+enum RevokedReason {
+  ROTATED
+  LOGOUT
+  REUSE_DETECTED
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -35,19 +41,35 @@ model RefreshToken {
   userId         String
   tokenHash      String    @db.Text
   familyId       String
-  revoked        Boolean   @default(false)
+  revoked        Boolean        @default(false)
+  revokedAt      DateTime?
+  revokedReason  RevokedReason?
   expiresAt      DateTime
-  createdAt      DateTime  @default(now())
+  createdAt      DateTime       @default(now())
   userAgent      String?
 
   supersededAt   DateTime?
   supersededById String?
 
   accessJti      String?
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([familyId])
   @@index([userId])
+  @@index([revoked, expiresAt])
+  @@index([revokedReason, revokedAt])
+}
+
+model ScheduledTaskRun {
+  id         String   @id @default(cuid())
+  taskName   String
+  startedAt  DateTime
+  durationMs Int
+  success    Boolean
+  result     Json?
+  error      String?
+
+  @@index([taskName, startedAt])
 }
 
 model OutboxEvent {

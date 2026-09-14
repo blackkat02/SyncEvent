@@ -1,5 +1,5 @@
 # SyncEvent — Project Diagnostic
-Generated: 2026-07-14T15:24:22.847Z
+Generated: 2026-09-14T18:05:39.137Z
 
 ## Project tree
 
@@ -8,6 +8,7 @@ Generated: 2026-07-14T15:24:22.847Z
 ├── .env
 ├── .env.docker
 ├── .env.example
+├── .gitattributes
 ├── .gitignore
 ├── .npmrc
 ├── .vscode/
@@ -27,30 +28,27 @@ Generated: 2026-07-14T15:24:22.847Z
 │   │   │   ├── analytics/
 │   │   │   │   ├── analytics.controller.ts
 │   │   │   │   └── analytics.service.ts
-│   │   │   ├── app.controller.spec.ts
-│   │   │   ├── app.controller.ts
 │   │   │   ├── app.module.ts
-│   │   │   ├── app.service.ts
+│   │   │   ├── common/
+│   │   │   │   └── seen-messages.ts
 │   │   │   └── main.ts
 │   │   ├── test/
-│   │   │   ├── app.e2e-spec.ts
 │   │   │   └── jest-e2e.json
 │   │   ├── tsconfig.build.json
 │   │   └── tsconfig.json
 │   ├── backend/
+│   │   ├── .env
 │   │   ├── .env.example
 │   │   ├── .gitignore
 │   │   ├── .prettierrc
 │   │   ├── Dockerfile
 │   │   ├── README.md
-│   │   ├── env.d.ts
-│   │   ├── env.d.ts.map
-│   │   ├── env.js
 │   │   ├── env.ts
 │   │   ├── eslint.config.mjs
 │   │   ├── nest-cli.json
 │   │   ├── package.json
 │   │   ├── prisma/
+│   │   │   ├── .migrations_backup/
 │   │   │   ├── migrations/
 │   │   │   │   ├── 20260307202939_init/
 │   │   │   │   │   └── migration.sql
@@ -60,14 +58,20 @@ Generated: 2026-07-14T15:24:22.847Z
 │   │   │   │   │   └── migration.sql
 │   │   │   │   ├── 20260310150113_init_full_schema/
 │   │   │   │   │   └── migration.sql
+│   │   │   │   ├── 20260908000000_add_event_seats_taken/
+│   │   │   │   │   └── migration.sql
+│   │   │   │   ├── 20260910000000_add_outbox_event/
+│   │   │   │   │   └── migration.sql
+│   │   │   │   ├── 20260912000000_add_event_participant/
+│   │   │   │   │   └── migration.sql
+│   │   │   │   ├── 20260913000000_add_refresh_token_multi_session/
+│   │   │   │   │   └── migration.sql
+│   │   │   │   ├── 20260914000000_add_refresh_token_revocation_metadata/
+│   │   │   │   │   └── migration.sql
+│   │   │   │   ├── 20260914010000_add_scheduled_task_run/
+│   │   │   │   │   └── migration.sql
 │   │   │   │   └── migration_lock.toml
-│   │   │   ├── prisma.module.d.ts
-│   │   │   ├── prisma.module.d.ts.map
-│   │   │   ├── prisma.module.js
 │   │   │   ├── prisma.module.ts
-│   │   │   ├── prisma.service.d.ts
-│   │   │   ├── prisma.service.d.ts.map
-│   │   │   ├── prisma.service.js
 │   │   │   ├── prisma.service.spec.ts
 │   │   │   ├── prisma.service.ts
 │   │   │   ├── schema.prisma
@@ -75,10 +79,14 @@ Generated: 2026-07-14T15:24:22.847Z
 │   │   ├── prisma.config.ts
 │   │   ├── scripts/
 │   │   │   ├── check-db.js
-│   │   │   └── entrypoint.sh
+│   │   │   ├── drive-seeded-tests.ts
+│   │   │   ├── entrypoint.sh
+│   │   │   └── smoke-booking.ts
 │   │   ├── src/
 │   │   │   ├── app.module.ts
 │   │   │   ├── auth/
+│   │   │   │   ├── access-token-blocklist.service.spec.ts
+│   │   │   │   ├── access-token-blocklist.service.ts
 │   │   │   │   ├── auth.controller.spec.ts
 │   │   │   │   ├── auth.controller.ts
 │   │   │   │   ├── auth.module.ts
@@ -87,14 +95,26 @@ Generated: 2026-07-14T15:24:22.847Z
 │   │   │   │   ├── dto/
 │   │   │   │   │   └── register.dto.ts
 │   │   │   │   └── strategies/
+│   │   │   │       ├── jwt.strategy.spec.ts
 │   │   │   │       └── jwt.strategy.ts
+│   │   │   ├── booking/
+│   │   │   │   ├── booking-queue.service.spec.ts
+│   │   │   │   ├── booking-queue.service.ts
+│   │   │   │   ├── booking-status.service.spec.ts
+│   │   │   │   ├── booking-status.service.ts
+│   │   │   │   ├── booking.constants.ts
+│   │   │   │   ├── booking.module.ts
+│   │   │   │   ├── booking.processor.spec.ts
+│   │   │   │   └── booking.processor.ts
 │   │   │   ├── common/
 │   │   │   │   ├── decorators/
 │   │   │   │   │   └── get-user.decorator.ts
 │   │   │   │   ├── dto/
 │   │   │   │   │   └── pagination.dto.ts
 │   │   │   │   ├── filters/
-│   │   │   │   │   └── http-exception.filter.ts
+│   │   │   │   │   ├── http-exception.filter.ts
+│   │   │   │   │   ├── prisma-exception.filter.spec.ts
+│   │   │   │   │   └── prisma-exception.filter.ts
 │   │   │   │   ├── guards/
 │   │   │   │   │   └── optional-auth.guard.ts
 │   │   │   │   ├── interceptors/
@@ -103,7 +123,6 @@ Generated: 2026-07-14T15:24:22.847Z
 │   │   │   │   │   ├── auth.interface.ts
 │   │   │   │   │   └── event.interface.ts
 │   │   │   │   └── pipes/
-│   │   │   │       └── yup-validation.pipe.ts
 │   │   │   ├── events/
 │   │   │   │   ├── dto/
 │   │   │   │   │   ├── create-event.dto.ts
@@ -112,20 +131,36 @@ Generated: 2026-07-14T15:24:22.847Z
 │   │   │   │   │   └── event.entity.ts
 │   │   │   │   ├── events.controller.ts
 │   │   │   │   ├── events.module.ts
+│   │   │   │   ├── events.service.spec.ts
 │   │   │   │   └── events.service.ts
 │   │   │   ├── kafka/
+│   │   │   │   ├── kafka-producer.service.spec.ts
 │   │   │   │   ├── kafka-producer.service.ts
 │   │   │   │   └── kafka.module.ts
 │   │   │   ├── main.ts
+│   │   │   ├── outbox/
+│   │   │   │   ├── outbox-relay.service.spec.ts
+│   │   │   │   ├── outbox-relay.service.ts
+│   │   │   │   └── outbox.module.ts
 │   │   │   ├── redis/
 │   │   │   │   ├── redis.module.ts
 │   │   │   │   └── redis.service.ts
-│   │   │   └── test-errors.controller.ts
+│   │   │   └── scheduled-tasks/
+│   │   │       ├── scheduled-tasks.constants.ts
+│   │   │       ├── scheduled-tasks.module.spec.ts
+│   │   │       ├── scheduled-tasks.module.ts
+│   │   │       ├── scheduled-tasks.processor.spec.ts
+│   │   │       ├── scheduled-tasks.processor.ts
+│   │   │       └── tasks/
+│   │   │           ├── cleanup-refresh-tokens.task.spec.ts
+│   │   │           └── cleanup-refresh-tokens.task.ts
 │   │   ├── test/
-│   │   │   ├── app.e2e-spec.ts
-│   │   │   └── jest-e2e.json
+│   │   │   ├── booking-concurrency.e2e-spec.ts
+│   │   │   ├── jest-e2e.json
+│   │   │   └── setup-env.ts
 │   │   ├── tsconfig.build.json
-│   │   └── tsconfig.json
+│   │   ├── tsconfig.json
+│   │   └── tsconfig.spec.json
 │   ├── frontend/
 │   │   ├── .eslintrc.cjs
 │   │   ├── .gitignore
@@ -188,21 +223,27 @@ Generated: 2026-07-14T15:24:22.847Z
 │       ├── nest-cli.json
 │       ├── package.json
 │       ├── src/
-│       │   ├── app.controller.spec.ts
-│       │   ├── app.controller.ts
 │       │   ├── app.module.ts
-│       │   ├── app.service.ts
+│       │   ├── common/
+│       │   │   └── seen-messages.ts
 │       │   ├── main.ts
 │       │   └── notifications/
 │       │       ├── notifications.controller.ts
 │       │       └── notifications.service.ts
 │       ├── test/
-│       │   ├── app.e2e-spec.ts
 │       │   └── jest-e2e.json
 │       ├── tsconfig.build.json
 │       └── tsconfig.json
 ├── build-log.txt
 ├── docker-compose.yml
+├── docs/
+│   ├── SESSION-HANDOFF-refresh-tokens.md
+│   ├── SESSION-HANDOFF.md
+│   └── architecture/
+│       ├── booking-concurrency.md
+│       ├── nestjs-zod-migration.md
+│       ├── refresh-token-rotation.md
+│       └── scheduled-tasks-worker.md
 ├── eslint.config.mjs
 ├── gather-project-info.mjs
 ├── package-lock.json
@@ -269,6 +310,13 @@ x-backend-env-common: &backend-env-common
   JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
   NODE_ENV: ${NODE_ENV:-development}
   CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+  # Redis-черга бронювання (Фаза 1) — RedisService/BullMQ підключаються сюди,
+  # а не до "localhost" (дефолт поза контейнером), тож без цього backend
+  # у compose тихо не знаходив би Redis.
+  REDIS_HOST: redis
+  REDIS_PORT: ${REDIS_PORT:-6379}
+  # Kafka producer + outbox relay (Фаза 2). Внутрішня адреса брокера.
+  KAFKA_BROKER: kafka:9092
 
 services:
   # ---------- PostgreSQL (--profile postgres) ----------
@@ -414,7 +462,84 @@ services:
     image: apache/kafka:3.9.0
     container_name: sync-event-kafka
     ports:
-      - "${KAFKA_PORT:-9092}:9092"
+      # In-container clients use kafka:9092. Host tools use localhost:29092.
+      - "${KAFKA_HOST_PORT:-29092}:29092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      # Empty host ("://:9092") binds all interfaces. Do NOT use "0.0.0.0" — the
+      # apache/kafka image's storage-format step falls back to KAFKA_LISTENERS
+      # when building advertised.listeners and Kafka rejects the 0.0.0.0 meta-address.
+      KAFKA_LISTENERS: CONTROLLER://:9093,PLAINTEXT://:9092,PLAINTEXT_HOST://:29092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      CLUSTER_ID: sync-event-kraft-cluster
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 >/dev/null 2>&1"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
+    networks:
+      - sync-network
+
+  # One-shot: create the domain-event topics up front so consumers don't race
+  # Kafka's lazy auto-creation on first connect ("This server does not host
+  # this topic-partition", which kafkajs doesn't recover from cleanly).
+  kafka-init:
+    image: apache/kafka:3.9.0
+    container_name: sync-event-kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        for t in event.user-joined event.user-left event.created event.deleted; do
+          /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 \
+            --create --if-not-exists --topic "$$t" --partitions 1 --replication-factor 1
+        done
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list
+    networks:
+      - sync-network
+
+  # ---------- Kafka consumer microservices (always on, no DB needed) ----------
+  analytics-service:
+    build:
+      context: .
+      dockerfile: apps/analytics-service/Dockerfile
+    container_name: sync-event-analytics
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      KAFKA_BROKER: kafka:9092
+      KAFKAJS_NO_PARTITIONER_WARNING: "1"
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    restart: on-failure
+    networks:
+      - sync-network
+
+  notifications-service:
+    build:
+      context: .
+      dockerfile: apps/notifications-service/Dockerfile
+    container_name: sync-event-notifications
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      KAFKA_BROKER: kafka:9092
+      KAFKAJS_NO_PARTITIONER_WARNING: "1"
+    depends_on:
+      kafka-init:
+        condition: service_completed_successfully
+    restart: on-failure
     networks:
       - sync-network
 
@@ -466,6 +591,10 @@ onlyBuiltDependencies:
     "lint": "pnpm -r lint",
     "db:generate": "pnpm --filter backend exec prisma generate",
     "db:studio": "pnpm --filter backend exec prisma studio",
+    "db:migr": "pnpm --filter backend exec prisma migrate dev",
+    "db:seed": "pnpm --filter backend run db:seed",
+    "test:seeded": "pnpm --filter backend run test:seeded",
+    "smoke:booking": "pnpm --filter backend run smoke:booking",
     "diagnose": "node gather-project-info.mjs",
     "dev:postgres": "cross-env COMPOSE_PROFILES=postgres docker compose up",
     "dev:mysql": "cross-env COMPOSE_PROFILES=mysql docker compose up",
@@ -482,8 +611,7 @@ onlyBuiltDependencies:
     "typescript": "^5.9.3"
   },
   "dependencies": {
-    "tsup": "^8.0.0",
-    "yup": "^1.7.1"
+    "tsup": "^8.0.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -495,7 +623,6 @@ onlyBuiltDependencies:
     ]
   }
 }
-
 
 ```
 
@@ -561,7 +688,10 @@ REDIS_PORT=6379
 # ==============================
 # Kafka
 # ==============================
-KAFKA_BROKER=kafka:9092
+# Compose services reach the broker at kafka:9092 (hardcoded per-service in
+# docker-compose.yml). A Node process on the host uses localhost:29092.
+KAFKA_BROKER=localhost:29092
+KAFKA_HOST_PORT=29092
 
 ```
 
@@ -569,19 +699,28 @@ KAFKA_BROKER=kafka:9092
 
 ```
 FROM node:24-alpine
-RUN npm install -g pnpm
+# Pin to the repo's "packageManager" version so pnpm doesn't try to
+# self-install/verify a different one (ERR_PNPM_PNPM_ENGINE_IDENTITY_UNVERIFIABLE).
+RUN npm install -g pnpm@10.30.2
 WORKDIR /app
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY tsconfig.base.json ./
+# --frozen-lockfile needs every workspace manifest to reconcile the lockfile.
 COPY apps/backend/package.json ./apps/backend/
+COPY apps/frontend/package.json ./apps/frontend/
+COPY apps/analytics-service/package.json ./apps/analytics-service/
+COPY apps/notifications-service/package.json ./apps/notifications-service/
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/eslint-rules/package.json ./packages/eslint-rules/
 
 RUN pnpm install --frozen-lockfile
 
 COPY packages/shared ./packages/shared
 COPY apps/backend ./apps/backend
-RUN chmod +x /app/apps/backend/scripts/entrypoint.sh
+# Strip CRLF (Windows checkouts) so Alpine's /bin/sh can run the script.
+RUN sed -i 's/\r$//' /app/apps/backend/scripts/entrypoint.sh \
+ && chmod +x /app/apps/backend/scripts/entrypoint.sh
 
 RUN cd /app/packages/shared && /app/node_modules/.bin/tsup && /app/node_modules/.bin/tsc --emitDeclarationOnly --noEmit false
 
@@ -614,13 +753,17 @@ CMD ["node", "dist/src/main.js"]
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
+    "test:unit": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "db:seed": "ts-node prisma/seed.ts"
+    "db:seed": "ts-node prisma/seed.ts",
+    "smoke:booking": "ts-node scripts/smoke-booking.ts",
+    "test:seeded": "ts-node scripts/drive-seeded-tests.ts"
   },
   "dependencies": {
+    "@nestjs/bullmq": "^12.0.0",
     "@nestjs/cache-manager": "^3.1.3",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.3",
@@ -635,19 +778,19 @@ CMD ["node", "dist/src/main.js"]
     "@prisma/client": "^6.0.0",
     "@syncevent/shared": "workspace:*",
     "bcrypt": "^6.0.0",
+    "bullmq": "^6.3.4",
     "cache-manager": "^7.2.9",
     "cache-manager-ioredis-yet": "^2.1.2",
-    "class-transformer": "^0.5.1",
-    "class-validator": "^0.15.1",
     "cookie-parser": "^1.4.7",
     "ioredis": "^5.11.1",
     "kafkajs": "^2.2.4",
+    "nestjs-zod": "^5.5.0",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "pg": "^8.20.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "yup": "^1.7.1"
+    "zod": "^4.6.4"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -682,19 +825,30 @@ CMD ["node", "dist/src/main.js"]
   },
   "jest": {
     "moduleFileExtensions": [
+      "ts",
       "js",
-      "json",
-      "ts"
+      "json"
     ],
-    "rootDir": "src",
+    "rootDir": ".",
+    "roots": [
+      "<rootDir>/src"
+    ],
     "testRegex": ".*\\.spec\\.ts$",
+    "setupFiles": [
+      "<rootDir>/test/setup-env.ts"
+    ],
     "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
+      "^.+\\.(t|j)s$": [
+        "ts-jest",
+        {
+          "tsconfig": "<rootDir>/tsconfig.spec.json"
+        }
+      ]
     },
     "collectCoverageFrom": [
-      "**/*.(t|j)s"
+      "src/**/*.(t|j)s"
     ],
-    "coverageDirectory": "../coverage",
+    "coverageDirectory": "<rootDir>/coverage",
     "testEnvironment": "node"
   },
   "prisma": {
@@ -712,7 +866,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -721,34 +875,108 @@ enum Visibility {
   PRIVATE
 }
 
+enum ParticipantStatus {
+  CONFIRMED
+  WAITLISTED
+}
+
+enum RevokedReason {
+  ROTATED
+  LOGOUT
+  REUSE_DETECTED
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
   password     String
   displayName  String?
   avatarUrl    String?
-  refreshToken String?  @db.Text
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  createdEvents Event[] @relation("CreatedEvents")
-  joinedEvents  Event[] @relation("JoinedEvents")
+  createdEvents  Event[]            @relation("CreatedEvents")
+  participations EventParticipant[]
+  refreshTokens  RefreshToken[]
+}
+
+model RefreshToken {
+  id             String    @id @default(cuid())
+  userId         String
+  tokenHash      String    @db.Text
+  familyId       String
+  revoked        Boolean        @default(false)
+  revokedAt      DateTime?
+  revokedReason  RevokedReason?
+  expiresAt      DateTime
+  createdAt      DateTime       @default(now())
+  userAgent      String?
+
+  supersededAt   DateTime?
+  supersededById String?
+
+  accessJti      String?
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([familyId])
+  @@index([userId])
+  @@index([revoked, expiresAt])
+  @@index([revokedReason, revokedAt])
+}
+
+/// Run history for every task in ScheduledTasksModule (scheduled-tasks-worker.md
+/// §6 Фаза 2), written once per job by ScheduledTasksProcessor -- generic across
+/// tasks so task 2, 3... get this for free, no per-task table.
+model ScheduledTaskRun {
+  id         String   @id @default(cuid())
+  taskName   String
+  startedAt  DateTime
+  durationMs Int
+  success    Boolean
+  result     Json?
+  error      String?
+
+  @@index([taskName, startedAt])
+}
+
+model OutboxEvent {
+  id        String    @id @default(cuid())
+  topic     String
+  key       String 
+  payload   Json
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+
+  @@index([sentAt, createdAt])
 }
 
 model Event {
-  id           String     @id @default(cuid())
+  id           String             @id @default(cuid())
   title        String
   description  String?
   date         DateTime
   location     String
   capacity     Int?
-  visibility   Visibility @default(PUBLIC)
+  seatsTaken   Int                @default(0)
+  visibility   Visibility         @default(PUBLIC)
   authorId     String
-  author       User       @relation("CreatedEvents", fields: [authorId], references: [id])
-  participants User[]     @relation("JoinedEvents")
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  author       User               @relation("CreatedEvents", fields: [authorId], references: [id])
+  participants EventParticipant[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
   @@index([authorId])
   @@index([visibility])
+}
+
+model EventParticipant {
+  eventId  String
+  userId   String
+  status   ParticipantStatus @default(CONFIRMED)
+  joinedAt DateTime          @default(now())
+  event    Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, userId])
+  @@index([userId])
 }
 ```
 
@@ -779,18 +1007,21 @@ let currentProvider = process.env.DB_PROVIDER;
 
 if (!currentProvider) {
   const envPath = join(appRoot, '.env');
-  if (!existsSync(envPath)) {
-    console.error('❌ Error: DB_PROVIDER not set and .env file not found!');
-    process.exit(1);
+  if (existsSync(envPath)) {
+    const envContent = readFileSync(envPath, 'utf8');
+    const providerMatch = envContent.match(/^DB_PROVIDER\s*=\s*(\w+)/m);
+    currentProvider = providerMatch
+      ? providerMatch[1].trim().toLowerCase()
+      : null;
   }
-  const envContent = readFileSync(envPath, 'utf8');
-  const providerMatch = envContent.match(/^DB_PROVIDER\s*=\s*(\w+)/m);
-  currentProvider = providerMatch
-    ? providerMatch[1].trim().toLowerCase()
-    : null;
 }
 
-currentProvider = currentProvider?.toLowerCase();
+// PostgreSQL is the project's target DB (docs/architecture/
+// booking-concurrency.md §0) and schema.prisma ships committed with
+// provider = "postgresql", so it's the default when nothing else says
+// otherwise. Only testing against MySQL needs an explicit DB_PROVIDER=mysql
+// (or a `DB_PROVIDER=mysql` line in .env).
+currentProvider = (currentProvider ?? 'postgresql').toLowerCase();
 
 if (
   !currentProvider ||
@@ -870,13 +1101,20 @@ if (updatedSchema !== schemaContent) {
 
 ```
 FROM node:24-alpine
-RUN npm install -g pnpm
+# Pin to the repo's "packageManager" version so pnpm doesn't try to
+# self-install/verify a different one (ERR_PNPM_PNPM_ENGINE_IDENTITY_UNVERIFIABLE).
+RUN npm install -g pnpm@10.30.2
 WORKDIR /app
 
 COPY pnpm-lock.yaml pnpm-workspace.yaml package.json .npmrc ./
 COPY tsconfig.base.json ./
+# --frozen-lockfile needs every workspace manifest to reconcile the lockfile.
+COPY apps/backend/package.json ./apps/backend/
 COPY apps/frontend/package.json ./apps/frontend/
+COPY apps/analytics-service/package.json ./apps/analytics-service/
+COPY apps/notifications-service/package.json ./apps/notifications-service/
 COPY packages/shared/package.json ./packages/shared/
+COPY packages/eslint-rules/package.json ./packages/eslint-rules/
 
 RUN pnpm install --frozen-lockfile
 
@@ -916,7 +1154,7 @@ CMD ["pnpm", "--filter", "frontend", "exec", "vite", "--host"]
     "react-hook-form": "^7.71.2",
     "react-redux": "^9.2.0",
     "react-router-dom": "^7.13.1",
-    "yup": "^1.7.1"
+    "zod": "^4.6.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
@@ -962,8 +1200,8 @@ CMD ["pnpm", "--filter", "frontend", "exec", "vite", "--host"]
     "build": "tsup && tsc --emitDeclarationOnly --noEmit false"
   },
   "dependencies": {
-    "yup": "^1.7.1",
-    "tsup": "^8.0.0"
+    "tsup": "^8.0.0",
+    "zod": "^4.6.4"
   },
   "devDependencies": {
     "tsup": "^8.0.0"
