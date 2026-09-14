@@ -1,5 +1,5 @@
 import { useForm } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { registerSchema, type RegisterInput } from "@syncevent/shared";
 import { useRegisterMutation } from "../authApi";
 import { setCredentials } from "../authSlice";
@@ -16,7 +16,7 @@ export const RegisterForm = () => {
     handleSubmit,
     formState: { errors },
   } = useForm<RegisterInput>({
-    resolver: yupResolver(registerSchema),
+    resolver: zodResolver(registerSchema),
   });
 
   const onSubmit = async (data: RegisterInput) => {

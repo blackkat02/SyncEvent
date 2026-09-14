@@ -1,46 +1,14 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { z } from 'zod';
+import { createZodDto } from 'nestjs-zod';
 import { EventVisibility } from '@syncevent/shared';
-import {
-  IsString,
-  IsNotEmpty,
-  IsOptional,
-  IsDateString,
-  IsInt,
-  Min,
-  IsEnum,
-} from 'class-validator';
 
-export class CreateEventDto {
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  title!: string;
+export const createEventDtoSchema = z.object({
+  title: z.string().min(1),
+  description: z.string().nullable().optional(),
+  date: z.iso.datetime().describe('ISO string date'),
+  location: z.string().min(1),
+  capacity: z.number().int().min(1).nullable().optional(),
+  visibility: z.nativeEnum(EventVisibility),
+});
 
-  @ApiProperty({ required: false, nullable: true })
-  @IsOptional()
-  @IsString()
-  description?: string | null;
-
-  @ApiProperty({ description: 'ISO string date' })
-  @IsDateString()
-  date!: string;
-
-  @ApiProperty()
-  @IsString()
-  @IsNotEmpty()
-  location!: string;
-
-  @ApiProperty({ required: false, nullable: true })
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  capacity?: number | null;
-
-  @ApiProperty({
-    enum: EventVisibility,
-    enumName: 'EventVisibility',
-    default: EventVisibility.PUBLIC,
-  })
-  @IsEnum(EventVisibility)
-  visibility!: EventVisibility;
-}
+export class CreateEventDto extends createZodDto(createEventDtoSchema) { }

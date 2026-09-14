@@ -1,5 +1,5 @@
 import { useForm } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
 import { useAppDispatch } from "../../../store/hooks";
 import { loginSchema, type LoginDto } from "@syncevent/shared";
@@ -16,7 +16,7 @@ export const LoginForm = () => {
     handleSubmit,
     formState: { errors },
   } = useForm<LoginDto>({
-    resolver: yupResolver(loginSchema),
+    resolver: zodResolver(loginSchema),
   });
 
   const onSubmit = async (data: LoginDto) => {

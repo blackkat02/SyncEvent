@@ -1,4 +1,4 @@
-import { PartialType } from '@nestjs/swagger';
-import { CreateEventDto } from './create-event.dto';
+import { createZodDto } from 'nestjs-zod';
+import { createEventDtoSchema } from './create-event.dto';
 
-export class UpdateEventDto extends PartialType(CreateEventDto) { }
+export class UpdateEventDto extends createZodDto(createEventDtoSchema.partial()) { }

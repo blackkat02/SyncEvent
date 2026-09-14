@@ -1,6 +1,6 @@
 import { useForm } from "react-hook-form";
 import type { Resolver, SubmitHandler } from "react-hook-form";
-import { yupResolver } from "@hookform/resolvers/yup";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   useCreateEventMutation,
@@ -11,9 +11,9 @@ import { Calendar, Clock, MapPin, Users, Globe, ArrowLeft } from "lucide-react";
 import { createEventSchema, EventVisibility } from "@syncevent/shared";
 import type { CreateEventRequest, UpdateEventInput } from "@syncevent/shared";
 import { useEffect } from "react";
-import * as yup from "yup";
+import { z } from "zod";
 
-type EventFormState = yup.InferType<typeof createEventSchema>;
+type EventFormState = z.infer<typeof createEventSchema>;
 
 export const CreateEventPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -33,7 +33,7 @@ export const CreateEventPage = () => {
     formState: { errors },
     reset,
   } = useForm<EventFormState>({
-    resolver: yupResolver(createEventSchema) as Resolver<EventFormState>,
+    resolver: zodResolver(createEventSchema) as Resolver<EventFormState>,
     defaultValues: {
       title: "",
       description: "",

@@ -1,17 +1,17 @@
-import * as yup from 'yup';
+import { z } from 'zod';
 
-export const registerSchema = yup.object({
-  email: yup.string().email('Invalid email').required('Email is required'),
-  password: yup.string().min(6, 'Password too short').required('Password is required'),
+export const registerSchema = z.object({
+  email: z.string('Email is required').email('Invalid email'),
+  password: z.string('Password is required').min(6, 'Password too short'),
 });
 
-export const loginSchema = yup.object({
-  email: yup.string().email('Invalid email').required('Email is required'),
-  password: yup.string().required('Password is required'),
+export const loginSchema = z.object({
+  email: z.string('Email is required').email('Invalid email'),
+  password: z.string('Password is required').min(1, 'Password is required'),
 });
 
-export type RegisterInput = yup.InferType<typeof registerSchema>;
-export type LoginInput = yup.InferType<typeof loginSchema>;
+export type RegisterInput = z.infer<typeof registerSchema>;
+export type LoginInput = z.infer<typeof loginSchema>;
 
 export type LoginDto = LoginInput
 export type RegisterDto = RegisterInput
