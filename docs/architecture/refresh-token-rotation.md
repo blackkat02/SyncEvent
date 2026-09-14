@@ -1,9 +1,9 @@
 # Refresh-токени: мульти-сесії, ротація, reuse-detection
 
-> Статус: **Фази 0-2 реалізовано, Фаза 3 частково** (2026-09-13; access-token blocklist зроблено, UI
-> активних сесій / cleanup cron / email-сповіщення — свідомо ні, "за потреби"). Див. §6 для деталей і
-> реального race-бага, знайденого й виправленого в Фазі 2. Соло-проєкт, автор — Borys.
-> Створено: 2026-09-12.
+> Статус: **Фази 0-2 реалізовано, Фаза 3 частково** (оновлено 2026-09-14; access-token
+> blocklist і cleanup cron зроблено, UI активних сесій / email-сповіщення — свідомо ні, "за
+> потреби"). Див. §6 для деталей і реального race-бага, знайденого й виправленого в Фазі 2.
+> Соло-проєкт, автор — Borys. Створено: 2026-09-12.
 > Пов'язаний код: `apps/backend/src/auth/auth.service.ts`, `apps/backend/src/auth/auth.controller.ts`,
 > `apps/backend/src/auth/access-token-blocklist.service.ts`,
 > `apps/backend/src/auth/strategies/jwt.strategy.ts`, `apps/backend/prisma/schema.prisma` (модель
@@ -182,12 +182,20 @@ API-викликів (типова SPA-поведінка: кілька відж
 
 ### Фаза 3 — опційно, за потреби (частково, 2026-09-13)
 - [ ] UI "активні сесії" (список `RefreshToken` юзера: `userAgent`, `createdAt`, кнопка "вийти з цього пристрою").
-- [ ] Cleanup job (cron): видаляти рядки з `expiresAt < now()` і давно `revoked`.
+- [x] Cleanup job (cron): видаляти рядки з `expiresAt < now()` і давно `revoked` — зроблено
+  2026-09-14, деталі в `docs/architecture/scheduled-tasks-worker.md` (§5.1 критерії
+  видалення, §6 Фаза 1 хід виконання). BullMQ repeatable job (`upsertJobScheduler`,
+  щодня о 3:00), не окремий cron-інструмент. Заразом додано `RefreshToken.revokedAt` /
+  `revokedReason` — цього поля не було в первинному дизайні цього документа, знадобилось,
+  щоб різні причини ревокації (ротація/logout проти reuse-detection) мали різне вікно
+  збереження перед видаленням.
 - [ ] Email-сповіщення при reuse-detection.
 - [x] Access-токен blocklist у Redis за `jti` — реалізовано (`AccessTokenBlocklistService` +
-  `RefreshToken.accessJti` + `POST /auth/logout-all`). Три пункти вище свідомо не робили — велика
-  додаткова робота (UI-екран, cron-інфраструктура, email-сервіс — жодного з них ще нема в проєкті),
-  а Фаза 3 з самого початку позначена як "за потреби".
+  `RefreshToken.accessJti` + `POST /auth/logout-all`). Два пункти вище (UI, email-сповіщення)
+  свідомо ще не робили — велика додаткова робота (UI-екран, email-сервіс — жодного з них ще
+  нема в проєкті), а Фаза 3 з самого початку позначена як "за потреби". Cleanup job зробили,
+  бо на відміну від UI/email, інфраструктура (BullMQ + Redis) для нього вже була в проєкті
+  (`scheduled-tasks-worker.md` §2) — гранична робота, не новий інструмент.
 
 ---
 

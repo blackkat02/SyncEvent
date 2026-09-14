@@ -8,6 +8,7 @@ import { RedisModule } from './redis/redis.module';
 import { KafkaModule } from './kafka/kafka.module';
 import { BookingModule } from './booking/booking.module';
 import { OutboxModule } from './outbox/outbox.module';
+import { ScheduledTasksModule } from './scheduled-tasks/scheduled-tasks.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { OutboxModule } from './outbox/outbox.module';
     EventsModule,
     BookingModule,
     OutboxModule,
+    ScheduledTasksModule,
   ],
 })
 export class AppModule {}

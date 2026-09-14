@@ -7,7 +7,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
-import { Prisma } from '@prisma/client';
+import { Prisma, RevokedReason } from '@prisma/client';
 import { RegisterDto } from './dto/register.dto';
 import { AuthResponse } from '@syncevent/shared';
 import { env } from '../../env';
@@ -96,9 +96,16 @@ export class AuthService {
           tokens.accessJti,
         );
 
+        const rotatedAt = new Date();
         const claim = await this.prisma.refreshToken.updateMany({
           where: { id: activeSession.id, revoked: false },
-          data: { revoked: true, supersededAt: new Date(), supersededById: newRow.id },
+          data: {
+            revoked: true,
+            revokedAt: rotatedAt,
+            revokedReason: RevokedReason.ROTATED,
+            supersededAt: rotatedAt,
+            supersededById: newRow.id,
+          },
         });
 
         if (claim.count === 1) {
@@ -135,7 +142,11 @@ export class AuthService {
 
       await this.prisma.refreshToken.updateMany({
         where: { familyId },
-        data: { revoked: true },
+        data: {
+          revoked: true,
+          revokedAt: new Date(),
+          revokedReason: RevokedReason.REUSE_DETECTED,
+        },
       });
       throw new UnauthorizedException('Refresh token reuse detected');
     }
@@ -150,7 +161,7 @@ export class AuthService {
   async logout(userId: string, familyId: string): Promise<void> {
     await this.prisma.refreshToken.updateMany({
       where: { userId, familyId, revoked: false },
-      data: { revoked: true },
+      data: { revoked: true, revokedAt: new Date(), revokedReason: RevokedReason.LOGOUT },
     });
   }
 
@@ -161,7 +172,7 @@ export class AuthService {
 
     await this.prisma.refreshToken.updateMany({
       where: { userId, revoked: false },
-      data: { revoked: true },
+      data: { revoked: true, revokedAt: new Date(), revokedReason: RevokedReason.LOGOUT },
     });
 
     await Promise.all(
