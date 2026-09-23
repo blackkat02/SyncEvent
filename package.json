@@ -6,6 +6,8 @@
     "dev": "pnpm --parallel -r dev",
     "dev:backend": "pnpm --filter backend start:dev",
     "dev:frontend": "pnpm --filter frontend dev",
+    "dev:frontend-next": "pnpm --filter frontend-next dev",
+    "build:frontend-next": "pnpm --filter frontend-next build",
     "build": "tsup && tsc --emitDeclarationOnly --noEmit false",
     "lint": "pnpm -r lint",
     "db:generate": "pnpm --filter backend exec prisma generate",
@@ -38,7 +40,8 @@
       "@prisma/engines",
       "prisma",
       "bcrypt",
-      "esbuild"
+      "esbuild",
+      "unrs-resolver"
     ]
   }
 }

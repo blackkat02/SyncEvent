@@ -24,7 +24,11 @@ async function bootstrap() {
   app.use(cookieParser());
 
   // Enable CORS for frontend
-  const allowedOrigins = process.env.CORS_ORIGINS?.split(',') || ['http://localhost:5173', 'http://localhost:3000'];
+  const allowedOrigins = process.env.CORS_ORIGINS?.split(',') || [
+    'http://localhost:5173', // apps/frontend (Vite)
+    'http://localhost:3001', // apps/frontend-next (Next.js dev)
+    'http://localhost:3000',
+  ];
   app.enableCors({
     origin: allowedOrigins,
     credentials: true,

@@ -13,7 +13,7 @@ x-backend-env-common: &backend-env-common
   JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN}
   JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
   NODE_ENV: ${NODE_ENV:-development}
-  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3001}
   # Redis-черга бронювання (Фаза 1) — RedisService/BullMQ підключаються сюди,
   # а не до "localhost" (дефолт поза контейнером), тож без цього backend
   # у compose тихо не знаходив би Redis.
@@ -154,6 +154,21 @@ services:
     networks:
       - sync-network
 
+  frontend-next:
+    build:
+      context: .
+      dockerfile: apps/frontend-next/Dockerfile
+    container_name: sync-event-frontend-next
+    ports:
+      - "${FRONTEND_NEXT_PORT:-3001}:3001"
+    environment:
+      # Must stay a browser-reachable URL (localhost, not the "backend"
+      # service name) — see the Dockerfile/compose note in
+      # docs/architecture/nextjs-migration.md for why.
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3000/api}
+    networks:
+      - sync-network
+
   redis:
     image: redis:7-alpine
     container_name: sync-event-redis
@@ -194,9 +209,6 @@ services:
     networks:
       - sync-network
 
-  # One-shot: create the domain-event topics up front so consumers don't race
-  # Kafka's lazy auto-creation on first connect ("This server does not host
-  # this topic-partition", which kafkajs doesn't recover from cleanly).
   kafka-init:
     image: apache/kafka:3.9.0
     container_name: sync-event-kafka-init
