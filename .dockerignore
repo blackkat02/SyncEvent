@@ -3,4 +3,10 @@ node_modules
 dist
 **/dist
 .git
+# Bare names in .dockerignore are anchored to the context root only —
+# unlike .gitignore, they do NOT match at any depth. **/ is required to
+# exclude nested files like apps/backend/.env or apps/frontend-next/.env.local.
 .env
+**/.env
+**/.env.local
+**/.next

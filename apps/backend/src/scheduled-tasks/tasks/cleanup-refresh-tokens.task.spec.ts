@@ -5,17 +5,6 @@ import {
   REUSE_DETECTED_RETENTION_MS,
 } from './cleanup-refresh-tokens.task';
 
-/**
- * `PrismaService` is mocked, so `deleteMany` never actually filters rows —
- * these tests instead assert on the exact `where` clause built for it. The
- * three scenario groups from design doc §5.4 (expired / ROTATED+LOGOUT past
- * the operational margin / REUSE_DETECTED past the forensics window) map
- * 1:1 onto the three `OR` branches asserted here: since Postgres applies
- * `lt` boundaries exactly, a correct branch shape is what makes each
- * "within window -> kept, past window -> deleted" pair from §5.4 true, for
- * both revoked reasons the branch covers.
- */
-
 const NOW = new Date('2026-09-14T12:00:00.000Z');
 
 describe('CleanupRefreshTokensTask', () => {
