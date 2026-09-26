@@ -1,13 +1,6 @@
 "use client";
-// useState (mobile menu) + usePathname (active-link highlighting) both
-// require the client boundary.
 
 import { useState } from "react";
-// react-router's <Link> + useLocation map onto two different Next.js APIs:
-// <Link> comes from "next/link" (a separate package, prop is `href` not
-// `to`), while the "what's the current path" hook is `usePathname` from
-// "next/navigation" — it returns the pathname string directly, not an
-// object with a `.pathname` field.
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserBar } from "@/components/UserBar/UserBar";

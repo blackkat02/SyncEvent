@@ -1,16 +1,8 @@
 "use client";
-// react-hook-form state + RTK Query mutations force the client boundary,
-// same reasoning as MyEventsCalendar and LoginForm/RegisterForm.
 
 import { useForm } from "react-hook-form";
 import type { Resolver, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-// Both react-router hooks map onto next/navigation. useParams keeps the
-// exact same generic syntax as react-router's version (verified against
-// this project's installed Next.js types: `useParams<T extends Params =
-// Params>(): T`) — it's synchronous, safe to call in a Client Component.
-// This is a different mechanism from a Server Component's `params` prop
-// (a Promise you `await`) — that one doesn't apply here at all.
 import { useRouter, useParams } from "next/navigation";
 import {
   useCreateEventMutation,
@@ -25,11 +17,7 @@ import { z } from "zod";
 
 type EventFormState = z.infer<typeof createEventSchema>;
 
-export const CreateEventPage = () => {
-  // On /events/create this route has no [id] segment at all, so `id` comes
-  // back undefined here — isEditMode naturally becomes false. Same shared
-  // component serves both /events/create and /events/[id]/edit for that
-  // reason, exactly like the Vite version did with react-router.
+export const CreateEditEventPage = () => {
   const { id } = useParams<{ id: string }>();
   const isEditMode = Boolean(id);
 
@@ -59,13 +47,6 @@ export const CreateEventPage = () => {
       date: new Date(),
     },
   });
-
-  // тимчасово для тестів
-  useEffect(() => {
-    if (Object.keys(errors).length > 0) {
-      console.warn("⚠️ Валідація не пройшла:", errors);
-    }
-  }, [errors]);
 
   const onSubmit: SubmitHandler<EventFormState> = async (values) => {
     try {

@@ -1,13 +1,9 @@
 "use client";
-// Redux hooks + RTK Query + local component state — client boundary needed.
 
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { LogOut } from "lucide-react";
 import { authApi, useGetProfileQuery } from "@/features/auth/authApi";
-// In Vite these two hooks lived in a separate store/hooks.ts; in this
-// project they're exported directly from store/store.ts instead (see
-// LoginForm.tsx, which already imports useAppDispatch from "@/store/store").
 import { useAppSelector, useAppDispatch } from "@/store/store";
 import {
   selectIsAuthenticated,
@@ -17,6 +13,7 @@ import {
 } from "@/features/auth/authSlice";
 
 export const UserBar: React.FC = () => {
+  const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
   const dispatch = useAppDispatch();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
@@ -27,12 +24,6 @@ export const UserBar: React.FC = () => {
   });
 
   useEffect(() => {
-    // Unlike the module-level localStorage read in authSlice.ts (which
-    // needed a `typeof window` guard because it runs at import time, even
-    // on the server), this read is inside a useEffect callback — effects
-    // never run during server rendering, only after the component mounts
-    // in the browser. So no guard is needed here; `window`/`localStorage`
-    // are always defined by the time this code executes.
     if (user && !cachedUser) {
       dispatch(
         setCredentials({
