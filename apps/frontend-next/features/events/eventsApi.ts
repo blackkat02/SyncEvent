@@ -72,34 +72,49 @@ export const eventsApi = createApi({
       providesTags: (_result, _error, id) => [{ type: 'Event', id }],
     }),
 
+    // 1. Запит календаря має декларувати той самий ТИП 'Event', що й мутації
     getMyCalendar: builder.query<EventResponse[], void>({
       query: () => '/events/me/calendar',
       transformResponse: (response: ApiWrapper<EventResponse[]>) => response.data,
-      providesTags: ['MyEvents'],
+      providesTags: [{ type: 'Event', id: 'MY_CALENDAR' }],
     }),
 
+    // 2. Створення нового івенту
     createEvent: builder.mutation<EventResponse, CreateEventInput>({
       query: (body) => ({ url: '/events', method: 'POST', body }),
-      invalidatesTags: ['Event'],
+      // При створенні немає сенсу інвалідувати конкретний ID (його ще не було).
+      // Ми просто кажемо: "Онови загальний список і мій календар".
+      invalidatesTags: [
+        { type: 'Event', id: 'LIST' },
+        { type: 'Event', id: 'MY_CALENDAR' },
+      ],
     }),
 
+    // 3. Оновлення існуючого івенту
     updateEvent: builder.mutation<EventResponse, { id: string; body: UpdateEventInput }>({
       query: ({ id, body }) => ({
         url: `/events/${id}`,
         method: 'PATCH',
         body
       }),
+      // Інвалідуємо списки ТА конкретний оновлений івент
       invalidatesTags: (_result, _error, { id }) => [
+        { type: 'Event', id },
         { type: 'Event', id: 'LIST' },
-        { type: 'Event', id }
+        { type: 'Event', id: 'MY_CALENDAR' }, 
       ],
     }),
 
+    // 4. Видалення івенту
     deleteEvent: builder.mutation<void, string>({
       query: (id) => ({ url: `/events/${id}`, method: 'DELETE' }),
-      invalidatesTags: ['Event'],
+      invalidatesTags: (_result, _error, id) => [
+        { type: 'Event', id },
+        { type: 'Event', id: 'LIST' },
+        { type: 'Event', id: 'MY_CALENDAR' },
+      ],
     }),
-
+    
     // The request is queued (202 + requestId), not applied inline, so this
     // polls GET /events/join-requests/:requestId until the worker settles it
     // (design doc: docs/architecture/booking-concurrency.md Phase 1).

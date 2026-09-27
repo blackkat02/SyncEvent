@@ -46,13 +46,6 @@ export const CreateEventPage = () => {
     },
   });
 
-  // тимчасово для тестів
-  useEffect(() => {
-    if (Object.keys(errors).length > 0) {
-      console.warn("⚠️ Валідація не пройшла:", errors);
-    }
-  }, [errors]);
-
   const onSubmit: SubmitHandler<EventFormState> = async (values) => {
     try {
       const combinedDate = new Date(`${values.dateStr}T${values.timeStr}`);
@@ -93,8 +86,9 @@ export const CreateEventPage = () => {
   useEffect(() => {
     if (isEditMode && eventData) {
       const eventDate = new Date(eventData.date);
-      const dateStr = eventDate.toISOString().split("T")[0];
-      const timeStr = eventDate.toTimeString().split(" ")[0].substring(0, 5);
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const dateStr = `${eventDate.getFullYear()}-${pad(eventDate.getMonth() + 1)}-${pad(eventDate.getDate())}`;
+      const timeStr = `${pad(eventDate.getHours())}:${pad(eventDate.getMinutes())}`;
 
       reset({
         title: eventData.title,

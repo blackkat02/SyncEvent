@@ -1,5 +1,5 @@
-import { CreateEventPage } from "@/screens/CreateEventPage";
+import { CreateEditEventPage } from "@/screens/CreateEditEventPage";
 
 export default function CreateEvent() {
-  return <CreateEventPage />;
+  return <CreateEditEventPage />;
 }
