@@ -1,20 +1,16 @@
 import { useDispatch, useSelector } from 'react-redux';
 import type { TypedUseSelectorHook } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
-import { authApi } from '../../src/features/auth/authApi';
-import { eventsApi } from '../../src/features/events/eventsApi';
-import authReducer from '../../src/features/auth/authSlice';
+import { baseApi } from '../features/api/baseApi';
+import authReducer from '../features/auth/authSlice';
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
-    [authApi.reducerPath]: authApi.reducer,
-    [eventsApi.reducerPath]: eventsApi.reducer,
+    [baseApi.reducerPath]: baseApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware()
-      .concat(authApi.middleware)
-      .concat(eventsApi.middleware),
+    getDefaultMiddleware().concat(baseApi.middleware),
 })
 
 export type RootState = ReturnType<typeof store.getState>

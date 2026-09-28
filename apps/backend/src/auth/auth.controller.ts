@@ -21,7 +21,6 @@ import { AuthService } from './auth.service';
 import {
   registerSchema,
   loginSchema,
-  AuthResponse,
   type LoginInput,
   type UserProfile,
   type RegisterInput,
@@ -36,7 +35,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly jwtService: JwtService,
-  ) { }
+  ) {}
 
   private setRefreshTokenCookie(res: Response, refreshToken: string) {
     res.cookie('refreshToken', refreshToken, {
@@ -102,12 +101,17 @@ export class AuthController {
   }
 
   @Post('refresh')
-  @ApiOperation({ summary: 'Refresh access token using refresh token from cookies' })
+  @ApiOperation({
+    summary: 'Refresh access token using refresh token from cookies',
+  })
   async refresh(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const refreshToken = req.cookies?.['refreshToken'];
+    const refreshToken: unknown = req.cookies?.['refreshToken'];
+    if (typeof refreshToken !== 'string' || refreshToken === '') {
+      throw new UnauthorizedException('Refresh token is required');
+    }
 
     if (!refreshToken) {
       throw new UnauthorizedException('Refresh token is required');
@@ -139,13 +143,15 @@ export class AuthController {
   }
 
   @Post('logout')
-  @ApiOperation({ summary: 'Revoke the current refresh-token session and clear its cookie' })
+  @ApiOperation({
+    summary: 'Revoke the current refresh-token session and clear its cookie',
+  })
   @ApiResponse({ status: 200, description: 'Logged out.' })
-  async logout(
-    @Req() req: Request,
-    @Res({ passthrough: true }) res: Response,
-  ) {
-    const refreshToken = req.cookies?.['refreshToken'];
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const refreshToken: unknown = req.cookies?.['refreshToken'];
+    if (typeof refreshToken !== 'string' || refreshToken === '') {
+      throw new UnauthorizedException('Refresh token is required');
+    }
     this.clearRefreshTokenCookie(res);
 
     if (refreshToken) {
@@ -171,7 +177,8 @@ export class AuthController {
   @ApiBearerAuth()
   @UseGuards(AuthGuard('jwt'))
   @ApiOperation({
-    summary: 'Revoke every session for this user and blocklist their current access tokens',
+    summary:
+      'Revoke every session for this user and blocklist their current access tokens',
   })
   @ApiResponse({ status: 200, description: 'Logged out everywhere.' })
   async logoutAll(

@@ -111,7 +111,8 @@ export const EventCard = ({
           disabled={isFull && !event.isJoined}
           onClick={(e) => {
             e.stopPropagation();
-            event.isJoined ? onLeave(e) : onJoin(e);
+            if (event.isJoined) onLeave(e);
+            else onJoin(e);
           }}
           className={`w-full py-2.5 rounded-xl font-medium transition-colors ${
             isFull && !event.isJoined

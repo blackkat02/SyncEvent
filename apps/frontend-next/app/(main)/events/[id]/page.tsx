@@ -2,7 +2,6 @@
 
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { ArrowLeft, Edit3, Trash2, Calendar, MapPin, Users } from "lucide-react";
 import {
   useGetEventByIdQuery,
@@ -14,7 +13,6 @@ import { useAppSelector } from "@/store/hooks";
 import { selectCurrentUser } from "@/features/auth/authSlice";
 
 export default function EventDetailsPage() {
-  const pathname = usePathname();
   const params = useParams();
   const router = useRouter();
   const currentUser = useAppSelector(selectCurrentUser);
@@ -58,7 +56,7 @@ export default function EventDetailsPage() {
     try {
       await deleteEvent(id!).unwrap();
       router.push("/");
-    } catch (err) {
+    } catch {
       alert("Failed to delete event");
     }
   };

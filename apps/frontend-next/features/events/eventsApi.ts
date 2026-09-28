@@ -1,22 +1,13 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query'
 import type { EventResponse, EventDetailResponse, CreateEventInput, UpdateEventInput } from '@syncevent/shared'
-import type { RootState } from '../../store/store'
 import type { PaginatedResponse, PaginationQueryParams } from '@syncevent/shared';
+import { type ApiWrapper, baseApi } from '@/features/api/baseApi';
 
-interface ApiWrapper<T> {
-  success: boolean
-  data: T
-  message: string
-}
-
-/** POST /events/:id/join now queues the write (backend booking-concurrency.md Phase 1) instead of doing it inline. */
 interface JoinAcceptedResponse {
   requestId: string
   statusUrl: string
 }
 
-/** Mirrors apps/backend/src/booking/booking-status.service.ts BookingRequestStatus. */
 type BookingRequestStatus =
   | { state: 'PENDING'; eventId: string; userId: string }
   | { state: 'CONFIRMED'; eventId: string; userId: string }
@@ -26,33 +17,12 @@ const JOIN_POLL_INTERVAL_MS = 400
 const JOIN_POLL_TIMEOUT_MS = 15_000
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
-
-/**
- * One idempotency key per event while a join is in flight: a double-click or
- * a component remount reuses it, so the backend dedupes to the same queued
- * job instead of enqueueing a second one. Cleared once the request settles.
- */
 const inflightJoinKeys = new Map<string, string>()
 
-export const eventsApi = createApi({
-  reducerPath: 'eventsApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: process.env.NEXT_PUBLIC_API_URL,
-    prepareHeaders: (headers, { getState }) => {
-      const token = (getState() as RootState).auth.accessToken
-      if (token) headers.set('Authorization', `Bearer ${token}`)
-      return headers
-    },
-  }),
-  tagTypes: ['Event', 'MyEvents'],
+export const eventsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getEvents: builder.query<PaginatedResponse<EventResponse>, PaginationQueryParams | void>({
-      query: (params) => ({
-        url: '/events',
-        method: 'GET',
-        params: params || {},
-      }),
-
+    getEvents: builder.query<PaginatedResponse<EventResponse>, PaginationQueryParams>({
+      query: (params) => ({ url: '/events', params }),
       transformResponse: (response: ApiWrapper<PaginatedResponse<EventResponse>>) => {
         return response.data;
       },
@@ -72,32 +42,26 @@ export const eventsApi = createApi({
       providesTags: (_result, _error, id) => [{ type: 'Event', id }],
     }),
 
-    // 1. Запит календаря має декларувати той самий ТИП 'Event', що й мутації
     getMyCalendar: builder.query<EventResponse[], void>({
       query: () => '/events/me/calendar',
       transformResponse: (response: ApiWrapper<EventResponse[]>) => response.data,
       providesTags: [{ type: 'Event', id: 'MY_CALENDAR' }],
     }),
 
-    // 2. Створення нового івенту
     createEvent: builder.mutation<EventResponse, CreateEventInput>({
       query: (body) => ({ url: '/events', method: 'POST', body }),
-      // При створенні немає сенсу інвалідувати конкретний ID (його ще не було).
-      // Ми просто кажемо: "Онови загальний список і мій календар".
       invalidatesTags: [
         { type: 'Event', id: 'LIST' },
         { type: 'Event', id: 'MY_CALENDAR' },
       ],
     }),
 
-    // 3. Оновлення існуючого івенту
     updateEvent: builder.mutation<EventResponse, { id: string; body: UpdateEventInput }>({
       query: ({ id, body }) => ({
         url: `/events/${id}`,
         method: 'PATCH',
         body
       }),
-      // Інвалідуємо списки ТА конкретний оновлений івент
       invalidatesTags: (_result, _error, { id }) => [
         { type: 'Event', id },
         { type: 'Event', id: 'LIST' },
@@ -105,7 +69,6 @@ export const eventsApi = createApi({
       ],
     }),
 
-    // 4. Видалення івенту
     deleteEvent: builder.mutation<void, string>({
       query: (id) => ({ url: `/events/${id}`, method: 'DELETE' }),
       invalidatesTags: (_result, _error, id) => [
@@ -114,10 +77,7 @@ export const eventsApi = createApi({
         { type: 'Event', id: 'MY_CALENDAR' },
       ],
     }),
-    
-    // The request is queued (202 + requestId), not applied inline, so this
-    // polls GET /events/join-requests/:requestId until the worker settles it
-    // (design doc: docs/architecture/booking-concurrency.md Phase 1).
+
     joinEvent: builder.mutation<void, string>({
       queryFn: async (id, _api, _extraOptions, baseQuery) => {
         const idempotencyKey = inflightJoinKeys.get(id) ?? crypto.randomUUID()
@@ -161,12 +121,18 @@ export const eventsApi = createApi({
           inflightJoinKeys.delete(id)
         }
       },
-      invalidatesTags: (_result, _error, id) => [{ type: 'Event', id }, 'MyEvents'],
+      invalidatesTags: (_result, _error, id) => [
+        { type: 'Event', id },
+        { type: 'Event', id: 'MY_CALENDAR' },
+      ],
     }),
 
     leaveEvent: builder.mutation<void, string>({
       query: (id) => ({ url: `/events/${id}/leave`, method: 'POST' }),
-      invalidatesTags: (_result, _error, id) => [{ type: 'Event', id }, 'MyEvents'],
+      invalidatesTags: (_result, _error, id) => [
+        { type: 'Event', id },
+        { type: 'Event', id: 'MY_CALENDAR' },
+      ],
     }),
   }),
 })
@@ -180,4 +146,4 @@ export const {
   useDeleteEventMutation,
   useJoinEventMutation,
   useLeaveEventMutation,
-} = eventsApi
+} = eventsApi;
