@@ -9,13 +9,12 @@ import {
   useJoinEventMutation,
   useLeaveEventMutation,
 } from "@/features/events/eventsApi";
-import { useAppSelector } from "@/store/hooks";
-import { selectCurrentUser } from "@/features/auth/authSlice";
+import { useCurrentUser } from "@/features/auth/useCurrentUser";
 
 export default function EventDetailsPage() {
   const params = useParams();
   const router = useRouter();
-  const currentUser = useAppSelector(selectCurrentUser);
+  const { data: currentUser } = useCurrentUser();
   const id = params?.id as string;
 
   const { data: event, isLoading, isError } = useGetEventByIdQuery(id!);

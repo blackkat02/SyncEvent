@@ -13,13 +13,12 @@ import {
   useJoinEventMutation,
   useLeaveEventMutation,
 } from "../features/events/eventsApi";
-import { useAppSelector } from "../store/hooks";
-import { selectCurrentUser } from "../features/auth/authSlice";
+import { useCurrentUser } from "../features/auth/useCurrentUser";
 
 export const EventDetailsPage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const currentUser = useAppSelector(selectCurrentUser);
+  const { data: currentUser } = useCurrentUser();
 
   const { data: event, isLoading, isError } = useGetEventByIdQuery(id!);
   const [deleteEvent] = useDeleteEventMutation();

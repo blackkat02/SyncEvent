@@ -78,7 +78,7 @@ export const eventsApi = baseApi.injectEndpoints({
       ],
     }),
 
-    joinEvent: builder.mutation<void, string>({
+    joinEvent: builder.mutation<null, string>({
       queryFn: async (id, _api, _extraOptions, baseQuery) => {
         const idempotencyKey = inflightJoinKeys.get(id) ?? crypto.randomUUID()
         inflightJoinKeys.set(id, idempotencyKey)
@@ -99,7 +99,7 @@ export const eventsApi = baseApi.injectEndpoints({
 
             const status = (poll.data as ApiWrapper<BookingRequestStatus>).data
 
-            if (status.state === 'CONFIRMED') return { data: undefined }
+            if (status.state === 'CONFIRMED') return { data: null }
             if (status.state === 'REJECTED') {
               return {
                 error: {

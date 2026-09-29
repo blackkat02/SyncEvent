@@ -1,15 +1,24 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import type { BaseQueryFn, FetchArgs, FetchBaseQueryError } from '@reduxjs/toolkit/query';
-import type { RootState } from '@/store/store';
-import { logout, updateAccessToken } from '@/features/auth/authSlice';
+import type {
+  BaseQueryApi,
+  BaseQueryFn,
+  FetchArgs,
+  FetchBaseQueryError,
+} from '@reduxjs/toolkit/query';
+import type { AppDispatch, RootState } from '@/store/store';
+import { API_BASE_URL } from '@/features/api/config';
+import {
+  bootstrapSession,
+  isRefreshing,
+  refreshSession,
+  waitForRefresh,
+} from '@/features/auth/session';
 
 export interface ApiWrapper<T> {
   success: boolean;
   data: T;
   message: string;
 }
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
 const baseQuery = fetchBaseQuery({
   baseUrl: API_BASE_URL,
@@ -23,67 +32,57 @@ const baseQuery = fetchBaseQuery({
   },
 });
 
-let refreshPromise: Promise<string | null> | null = null;
+// Auth endpoints where 401 means "bad credentials / no session cookie", not "expired
+// access token". Refreshing on /auth/logout would rotate the very session being closed.
+const NO_REAUTH_URLS = new Set([
+  '/auth/login',
+  '/auth/register',
+  '/auth/refresh',
+  '/auth/logout',
+]);
+
+const urlOf = (args: string | FetchArgs) => (typeof args === 'string' ? args : args.url);
+
+const tokenOf = (api: BaseQueryApi) => (api.getState() as RootState).auth.accessToken;
 
 const baseQueryWithReauth: BaseQueryFn<
   string | FetchArgs,
   unknown,
   FetchBaseQueryError
 > = async (args, api, extraOptions) => {
+  const dispatch = api.dispatch as AppDispatch;
 
-  let result = await baseQuery(args, api, extraOptions);
+  // Nothing leaves before we know who the user is, and nothing is sent with a token
+  // that is about to be replaced.
+  await bootstrapSession(dispatch);
+  await waitForRefresh();
 
-  if (result.error && result.error.status === 401) {
-    console.warn('⚠️ Access token expired. Attempting to refresh...');
+  const tokenUsed = tokenOf(api);
+  const result = await baseQuery(args, api, extraOptions);
 
-    const accessToken = await refreshAccessToken();
-
-    if (accessToken) {
-      api.dispatch(updateAccessToken({ accessToken }))
-
-      const reauthedArgs = typeof args === 'string'
-        ? { url: args, headers: { authorization: `Bearer ${accessToken}` } }
-        : {
-          ...args,
-          headers: {
-            ...(args.headers || {}),
-            authorization: `Bearer ${accessToken}`,
-          },
-        }
-
-      result = await baseQuery(reauthedArgs, api, extraOptions)
-    } else {
-      api.dispatch(logout())
-    }
+  if (result.error?.status !== 401 || NO_REAUTH_URLS.has(urlOf(args))) {
+    return result;
   }
 
-  return result;
+  // Anonymous after bootstrap: there is no session to refresh.
+  if (tokenUsed === null) return result;
+
+  // Someone else is refreshing right now — wait for them and retry once.
+  if (isRefreshing()) {
+    await waitForRefresh();
+    return baseQuery(args, api, extraOptions);
+  }
+
+  // A refresh already happened while this request was in flight: the 401 is stale.
+  if (tokenOf(api) !== tokenUsed) {
+    return baseQuery(args, api, extraOptions);
+  }
+
+  const refreshed = await refreshSession(dispatch);
+
+  // prepareHeaders reads the new token from state — exactly one retry.
+  return refreshed ? baseQuery(args, api, extraOptions) : result;
 };
-
-async function refreshAccessToken(): Promise<string | null> {
-  if (!refreshPromise) {
-    refreshPromise = (async () => {
-      try {
-        const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-          method: 'POST',
-          credentials: 'include',
-        });
-
-        if (!response.ok) return null;
-
-        const jsonResponse = await response.json();
-        return jsonResponse.data.accessToken as string;
-      } catch (fetchError) {
-        console.error('🚨 Network error during token refresh:', fetchError);
-        return null;
-      } finally {
-        refreshPromise = null;
-      }
-    })();
-  }
-
-  return refreshPromise;
-}
 
 export const baseApi = createApi({
   reducerPath: 'api',
