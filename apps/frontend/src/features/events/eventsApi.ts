@@ -1,14 +1,7 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react'
 import type { FetchBaseQueryError } from '@reduxjs/toolkit/query'
 import type { EventResponse, EventDetailResponse, CreateEventInput, UpdateEventInput } from '@syncevent/shared'
-import type { RootState } from '../../store/store'
 import type { PaginatedResponse, PaginationQueryParams } from '@syncevent/shared';
-
-interface ApiWrapper<T> {
-  success: boolean
-  data: T
-  message: string
-}
+import { baseApi, type ApiWrapper } from '../api/baseApi';
 
 /** POST /events/:id/join now queues the write (backend booking-concurrency.md Phase 1) instead of doing it inline. */
 interface JoinAcceptedResponse {
@@ -34,24 +27,10 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
  */
 const inflightJoinKeys = new Map<string, string>()
 
-export const eventsApi = createApi({
-  reducerPath: 'eventsApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: import.meta.env.VITE_API_URL,
-    prepareHeaders: (headers, { getState }) => {
-      const token = (getState() as RootState).auth.accessToken
-      if (token) headers.set('Authorization', `Bearer ${token}`)
-      return headers
-    },
-  }),
-  tagTypes: ['Event', 'MyEvents'],
+export const eventsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    getEvents: builder.query<PaginatedResponse<EventResponse>, PaginationQueryParams | void>({
-      query: (params) => ({
-        url: '/events',
-        method: 'GET',
-        params: params || {},
-      }),
+    getEvents: builder.query<PaginatedResponse<EventResponse>, PaginationQueryParams>({
+      query: (params) => ({ url: '/events', params }),
 
       transformResponse: (response: ApiWrapper<PaginatedResponse<EventResponse>>) => {
         return response.data;
@@ -75,12 +54,15 @@ export const eventsApi = createApi({
     getMyCalendar: builder.query<EventResponse[], void>({
       query: () => '/events/me/calendar',
       transformResponse: (response: ApiWrapper<EventResponse[]>) => response.data,
-      providesTags: ['MyEvents'],
+      providesTags: [{ type: 'Event', id: 'MY_CALENDAR' }],
     }),
 
     createEvent: builder.mutation<EventResponse, CreateEventInput>({
       query: (body) => ({ url: '/events', method: 'POST', body }),
-      invalidatesTags: ['Event'],
+      invalidatesTags: [
+        { type: 'Event', id: 'LIST' },
+        { type: 'Event', id: 'MY_CALENDAR' },
+      ],
     }),
 
     updateEvent: builder.mutation<EventResponse, { id: string; body: UpdateEventInput }>({
@@ -90,14 +72,19 @@ export const eventsApi = createApi({
         body
       }),
       invalidatesTags: (_result, _error, { id }) => [
+        { type: 'Event', id },
         { type: 'Event', id: 'LIST' },
-        { type: 'Event', id }
+        { type: 'Event', id: 'MY_CALENDAR' },
       ],
     }),
 
     deleteEvent: builder.mutation<void, string>({
       query: (id) => ({ url: `/events/${id}`, method: 'DELETE' }),
-      invalidatesTags: ['Event'],
+      invalidatesTags: (_result, _error, id) => [
+        { type: 'Event', id },
+        { type: 'Event', id: 'LIST' },
+        { type: 'Event', id: 'MY_CALENDAR' },
+      ],
     }),
 
     // The request is queued (202 + requestId), not applied inline, so this
@@ -146,12 +133,18 @@ export const eventsApi = createApi({
           inflightJoinKeys.delete(id)
         }
       },
-      invalidatesTags: (_result, _error, id) => [{ type: 'Event', id }, 'MyEvents'],
+      invalidatesTags: (_result, _error, id) => [
+        { type: 'Event', id },
+        { type: 'Event', id: 'MY_CALENDAR' },
+      ],
     }),
 
     leaveEvent: builder.mutation<void, string>({
       query: (id) => ({ url: `/events/${id}/leave`, method: 'POST' }),
-      invalidatesTags: (_result, _error, id) => [{ type: 'Event', id }, 'MyEvents'],
+      invalidatesTags: (_result, _error, id) => [
+        { type: 'Event', id },
+        { type: 'Event', id: 'MY_CALENDAR' },
+      ],
     }),
   }),
 })

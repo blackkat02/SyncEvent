@@ -9,7 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { Prisma, RevokedReason } from '@prisma/client';
 import { RegisterDto } from './dto/register.dto';
-import { AuthResponse } from '@syncevent/shared';
+import { AuthTokensResult } from '@syncevent/shared';
 import { env } from '../../env';
 import { AccessTokenBlocklistService } from './access-token-blocklist.service';
 
@@ -25,17 +25,26 @@ export class AuthService {
     private prisma: PrismaService,
     private jwtService: JwtService,
     private accessTokenBlocklist: AccessTokenBlocklistService,
-  ) { }
+  ) {}
 
-  async register(dto: RegisterDto): Promise<AuthResponse> {
+  async register(dto: RegisterDto): Promise<AuthTokensResult> {
     try {
       const hashedPassword = await bcrypt.hash(dto.password, 10);
       const user = await this.prisma.user.create({
         data: { email: dto.email, password: hashedPassword },
       });
       const familyId = randomUUID();
-      const { accessJti, ...tokens } = await this.getTokens(user.id, user.email, familyId);
-      await this.createRefreshTokenSession(user.id, familyId, tokens.refreshToken, accessJti);
+      const { accessJti, ...tokens } = await this.getTokens(
+        user.id,
+        user.email,
+        familyId,
+      );
+      await this.createRefreshTokenSession(
+        user.id,
+        familyId,
+        tokens.refreshToken,
+        accessJti,
+      );
       return {
         user: {
           id: user.id,
@@ -56,16 +65,26 @@ export class AuthService {
     }
   }
 
-  async login(dto: RegisterDto): Promise<AuthResponse> {
+  async login(dto: RegisterDto): Promise<AuthTokensResult> {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
     if (!user) throw new UnauthorizedException('Invalid credentials');
     const isPasswordValid = await bcrypt.compare(dto.password, user.password);
-    if (!isPasswordValid) throw new UnauthorizedException('Invalid credentials');
+    if (!isPasswordValid)
+      throw new UnauthorizedException('Invalid credentials');
     const familyId = randomUUID();
-    const { accessJti, ...tokens } = await this.getTokens(user.id, user.email, familyId);
-    await this.createRefreshTokenSession(user.id, familyId, tokens.refreshToken, accessJti);
+    const { accessJti, ...tokens } = await this.getTokens(
+      user.id,
+      user.email,
+      familyId,
+    );
+    await this.createRefreshTokenSession(
+      user.id,
+      familyId,
+      tokens.refreshToken,
+      accessJti,
+    );
     return {
       user: {
         id: user.id,
@@ -86,7 +105,10 @@ export class AuthService {
     });
 
     if (activeSession && activeSession.userId === userId) {
-      const isTokenMatch = await bcrypt.compare(refreshToken, activeSession.tokenHash);
+      const isTokenMatch = await bcrypt.compare(
+        refreshToken,
+        activeSession.tokenHash,
+      );
       if (isTokenMatch) {
         const tokens = await this.getTokens(user.id, user.email, familyId);
         const newRow = await this.createRefreshTokenSession(
@@ -123,7 +145,11 @@ export class AuthService {
     for (const row of revokedRows) {
       if (!(await bcrypt.compare(refreshToken, row.tokenHash))) continue;
 
-      if (row.supersededById && row.supersededAt && this.isWithinGracePeriod(row.supersededAt)) {
+      if (
+        row.supersededById &&
+        row.supersededAt &&
+        this.isWithinGracePeriod(row.supersededAt)
+      ) {
         const currentRow = await this.prisma.refreshToken.findUnique({
           where: { id: row.supersededById },
         });
@@ -161,7 +187,11 @@ export class AuthService {
   async logout(userId: string, familyId: string): Promise<void> {
     await this.prisma.refreshToken.updateMany({
       where: { userId, familyId, revoked: false },
-      data: { revoked: true, revokedAt: new Date(), revokedReason: RevokedReason.LOGOUT },
+      data: {
+        revoked: true,
+        revokedAt: new Date(),
+        revokedReason: RevokedReason.LOGOUT,
+      },
     });
   }
 
@@ -172,14 +202,21 @@ export class AuthService {
 
     await this.prisma.refreshToken.updateMany({
       where: { userId, revoked: false },
-      data: { revoked: true, revokedAt: new Date(), revokedReason: RevokedReason.LOGOUT },
+      data: {
+        revoked: true,
+        revokedAt: new Date(),
+        revokedReason: RevokedReason.LOGOUT,
+      },
     });
 
     await Promise.all(
       liveSessions
         .filter((session) => session.accessJti !== null)
         .map((session) =>
-          this.accessTokenBlocklist.revoke(session.accessJti as string, ACCESS_TOKEN_TTL_SECONDS),
+          this.accessTokenBlocklist.revoke(
+            session.accessJti as string,
+            ACCESS_TOKEN_TTL_SECONDS,
+          ),
         ),
     );
   }

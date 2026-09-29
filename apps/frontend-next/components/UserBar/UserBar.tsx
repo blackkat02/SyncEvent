@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { LogOut } from "lucide-react";
-import { authApi, useGetProfileQuery } from "@/features/auth/authApi";
+import { useGetProfileQuery } from "@/features/auth/authApi";
+import { baseApi } from "@/features/api/baseApi";
 import { useAppSelector, useAppDispatch } from "@/store/store";
 import {
   selectIsAuthenticated,
@@ -11,13 +12,14 @@ import {
   setCredentials,
   logout,
 } from "@/features/auth/authSlice";
+import {useIsHydrated } from "@/features/hooks/useIsHydrated"
 
 export const UserBar: React.FC = () => {
-  const [isMounted, setIsMounted] = useState(false);
   const router = useRouter();
   const dispatch = useAppDispatch();
   const isAuthenticated = useAppSelector(selectIsAuthenticated);
   const cachedUser = useAppSelector(selectCurrentUser);
+  const isHydrated = useIsHydrated()
 
   const { data: user, isLoading } = useGetProfileQuery(undefined, {
     skip: !isAuthenticated,
@@ -36,7 +38,7 @@ export const UserBar: React.FC = () => {
 
   const displayUser = cachedUser ?? user;
 
-  if (isLoading)
+  if (!isHydrated || isLoading)
     return <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse" />;
 
   if (!displayUser)
@@ -68,7 +70,7 @@ export const UserBar: React.FC = () => {
         onClick={(e) => {
           e.stopPropagation();
           dispatch(logout());
-          dispatch(authApi.util.resetApiState());
+          dispatch(baseApi.util.resetApiState());
           router.push("/auth/login");
         }}
         className="p-1.5 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"

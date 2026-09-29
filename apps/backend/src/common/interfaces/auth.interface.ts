@@ -4,7 +4,7 @@ export interface UserResponse {
   displayName?: string;
 }
 
-export interface AuthResponse {
+export interface AuthTokensResult {
   user: UserResponse;
   accessToken: string;
   refreshToken: string;

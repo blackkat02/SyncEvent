@@ -5,8 +5,13 @@ export interface UserProfile {
   avatarUrl: string | null;
 }
 
-export interface AuthResponse {
+export interface AuthTokensResult {
   user: UserProfile;
   accessToken: string;
   refreshToken: string;
+}
+
+export interface LoginResponse { 
+  user: UserProfile; 
+  accessToken: string; 
 }

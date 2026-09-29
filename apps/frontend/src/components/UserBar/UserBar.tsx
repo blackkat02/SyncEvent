@@ -1,7 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { LogOut } from "lucide-react";
-import { authApi, useGetProfileQuery } from "../../features/auth/authApi";
+import { useGetProfileQuery } from "../../features/auth/authApi";
+import { baseApi } from "../../features/api/baseApi";
 import { useAppSelector, useAppDispatch } from "../../store/hooks";
 import {
   selectIsAuthenticated,
@@ -65,7 +66,7 @@ export const UserBar: React.FC = () => {
         onClick={(e) => {
           e.stopPropagation();
           dispatch(logout());
-          dispatch(authApi.util.resetApiState());
+          dispatch(baseApi.util.resetApiState());
           navigate("/auth/login");
         }}
         className="p-1.5 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
