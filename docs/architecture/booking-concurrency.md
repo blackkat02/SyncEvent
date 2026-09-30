@@ -303,9 +303,15 @@ Relay v2 — Debezium CDC.
 
 ### Фаза 4 — прибрати MySQL
 
-- [ ] Видалити `--profile mysql`, `DB_PROVIDER`, гілки в `entrypoint.sh`.
-- [ ] Зафіксувати `provider = "postgresql"`.
+- [x] Видалити `--profile mysql`, `DB_PROVIDER`, гілки в `entrypoint.sh`.
+- [x] Зафіксувати `provider = "postgresql"`.
 - [ ] Увімкнути Postgres-специфічне: `FOR UPDATE SKIP LOCKED` для relay, partial indexes.
+
+> **2026-09-30**: MySQL прибрано повністю — сервіси `db-mysql`/`backend-init-mysql`/`backend-mysql`
+> і volume `mysqldata` з `docker-compose.yml`, compose-профілі (стек тепер один, `pnpm dev:docker`),
+> `scripts/check-db.js` (перемикач провайдера/міграцій) і його виклик в `entrypoint.sh`,
+> `DB_PROVIDER`, `MYSQL_*` з `.env.example`, скрипт `dev:mysql`, залежність `cross-env`.
+> Згадки MySQL нижче в цьому документі — історичний лог.
 
 ---
 

@@ -23,7 +23,7 @@ x-backend-env-common: &backend-env-common
   KAFKA_BROKER: kafka:9092
 
 services:
-  # ---------- PostgreSQL (--profile postgres) ----------
+  # ---------- PostgreSQL ----------
   db-postgres:
     image: postgres:16-alpine
     container_name: sync-event-db-postgres
@@ -43,27 +43,23 @@ services:
       - pgdata:/var/lib/postgresql/data
     networks:
       - sync-network
-    profiles: ["postgres"]
 
   backend-init:
     <<: *backend-base
     container_name: sync-event-init
     environment:
       <<: *backend-env-common
-      DB_PROVIDER: postgresql
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-postgres:5432/${POSTGRES_DB}?schema=public
       MODE: init
     depends_on:
       db-postgres:
         condition: service_healthy
-    profiles: ["postgres"]
 
   backend:
     <<: *backend-base
     container_name: sync-event-backend
     environment:
       <<: *backend-env-common
-      DB_PROVIDER: postgresql
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-postgres:5432/${POSTGRES_DB}?schema=public
       MODE: serve
     ports:
@@ -71,7 +67,6 @@ services:
     depends_on:
       backend-init:
         condition: service_completed_successfully
-    profiles: ["postgres"]
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -89,58 +84,6 @@ services:
     depends_on:
       db-postgres:
         condition: service_healthy
-    profiles: ["postgres"]
-
-  # ---------- MySQL (--profile mysql) ----------
-  db-mysql:
-    image: mysql:8.0
-    container_name: sync-event-db-mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-    ports:
-      - "${MYSQL_PORT:-3307}:3306"
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "${MYSQL_USER}", "-p${MYSQL_PASSWORD}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-    volumes:
-      - mysqldata:/var/lib/mysql
-    networks:
-      - sync-network
-    profiles: ["mysql"]
-
-  backend-init-mysql:
-    <<: *backend-base
-    container_name: sync-event-init-mysql
-    environment:
-      <<: *backend-env-common
-      DB_PROVIDER: mysql
-      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-mysql:3306/${MYSQL_DATABASE}
-      MODE: init
-    depends_on:
-      db-mysql:
-        condition: service_healthy
-    profiles: ["mysql"]
-
-  backend-mysql:
-    <<: *backend-base
-    container_name: sync-event-backend-mysql
-    environment:
-      <<: *backend-env-common
-      DB_PROVIDER: mysql
-      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-mysql:3306/${MYSQL_DATABASE}
-      MODE: serve
-    ports:
-      - "${BACKEND_PORT:-3000}:3000"
-    depends_on:
-      backend-init-mysql:
-        condition: service_completed_successfully
-    profiles: ["mysql"]
 
   frontend:
     build:
@@ -264,6 +207,5 @@ networks:
     driver: bridge
 
 volumes:
-  mysqldata:
   pgdata:
   pgadmin-data:

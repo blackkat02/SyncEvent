@@ -98,7 +98,13 @@ async function main() {
 
   await prisma.event.upsert({
     where: { id: 'event-main' },
-    update: {},
+    update: {
+      seatsTaken: 2,
+      participants: {
+        deleteMany: {},
+        createMany: { data: [{ userId: user1.id }, { userId: user2.id }] },
+      },
+    },
     create: {
       id: 'event-main',
       title: 'Tech Conference 2026',
@@ -106,10 +112,11 @@ async function main() {
       date: new Date('2026-11-15T09:00:00Z'),
       location: 'Convention Center, San Francisco',
       capacity: 500,
-      seatsTaken: 1,
+      seatsTaken: 2,
       visibility: Visibility.PUBLIC,
       authorId: user1.id,
-      participants: { create: [{ userId: user2.id }] },
+      // Author is always a participant (EventsService.create invariant).
+      participants: { create: [{ userId: user1.id }, { userId: user2.id }] },
     },
   });
 
@@ -214,11 +221,11 @@ async function main() {
       participants: { create: [{ userId: user3.id }] },
     },
   });
-
-  await prisma.$disconnect();
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+main()
+  .catch((e) => {
+    console.error(e);
+    process.exitCode = 1;
+  })
+  .finally(() => prisma.$disconnect());
