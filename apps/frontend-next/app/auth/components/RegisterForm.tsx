@@ -4,12 +4,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { registerSchema, type RegisterInput } from "@syncevent/shared";
 import { useRegisterMutation } from "@/features/auth/authApi";
-import { setCredentials } from "@/features/auth/authSlice";
-import { useAppDispatch } from "@/store/store";
 import { useRouter } from "next/navigation";
 
 export const RegisterForm = () => {
-  const dispatch = useAppDispatch();
   const router = useRouter();
   const [registerUser, { isLoading, error }] = useRegisterMutation();
 
@@ -23,14 +20,8 @@ export const RegisterForm = () => {
 
   const onSubmit = async (data: RegisterInput) => {
     try {
-      const result = await registerUser(data).unwrap();
-      // Зберігаємо токени та юзера в Redux + localStorage
-      dispatch(
-        setCredentials({
-          user: result.user,
-          accessToken: result.accessToken,
-        }),
-      );
+      // The token is stored by the mutation itself (onQueryStarted in authApi).
+      await registerUser(data).unwrap();
       router.push("/");
     } catch (err) {
       console.error("Failed to register:", err);

@@ -6,8 +6,7 @@ import {
   useJoinEventMutation,
   useLeaveEventMutation,
 } from "@/features/events/eventsApi";
-import { useAppSelector } from "@/store/hooks";
-import { selectCurrentUser } from "@/features/auth/authSlice";
+import { useCurrentUser } from "@/features/auth/useCurrentUser";
 import { EventCard } from "@/features/events/components/EventCard";
 import type { EventResponse, PaginationQueryParams } from "@syncevent/shared";
 
@@ -23,7 +22,7 @@ export default function EventsPage() {
   } = useGetEventsQuery(queryParams);
   const [joinEvent] = useJoinEventMutation();
   const [leaveEvent] = useLeaveEventMutation();
-  const currentUser = useAppSelector(selectCurrentUser);
+  const { data: currentUser } = useCurrentUser();
 
   if (isLoading)
     return (

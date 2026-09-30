@@ -736,39 +736,136 @@ Redux-стор, `matchMedia`, `navigator.onLine`. Три аргументи:
 живого юзера викине з усіх сесій. `GRACE_PERIOD_MS = 10s` це прикриває, але покладатись
 на страховку замість того, щоб не створювати гонку, — погана інженерія.
 
-Поточна реалізація в `authApi.ts` уже має `refreshPromise`, і вона майже правильна.
-Дві діри:
-1. `refreshPromise = null` у `finally` спрацьовує в момент резолву, тобто вікно
-   «перший вже завершився, другий ще не встиг прочитати» дуже мале, але не нульове.
-2. Немає **бар'єра на вході**: запит, що стартує *під час* refresh, іде з **старим**
-   токеном, гарантовано отримає 401 і піде робити другий refresh.
+Поточна реалізація (після Кроку 2 — у `features/api/baseApi.ts`) уже має
+`refreshPromise`, тобто **дедуплікує одночасні** виклики refresh. Але «одночасні» —
+це лише один із трьох часових сценаріїв. Розклади на осі часу (R = refresh у льоті):
 
-Правильний патерн — мʼютекс (`async-mutex` або свій на промісах):
 ```
-if (mutex.isLocked()) { await mutex.waitForUnlock(); retry з новим токеном }
-else { release = await mutex.acquire(); try { refresh; retry } finally { release() } }
+            ┌──────── R ────────┐
+A: ──req──401──┘                 │               ← A запустив R
+B:   ──req──────401──────────────┤ join R        ✅ refreshPromise це ловить
+C:        ──req(старий токен)────┼──401──►  ?    ❌ 401 прийшов ПІСЛЯ R → новий refresh
+D:                  ──req────────┤ (старий токен, бо R ще не записав новий) ❌ те саме
 ```
+
+Звідси чотири діри в поточному коді:
+
+1. **Немає барʼєра на вході.** Запит D, що *стартує* під час R, іде зі старим токеном,
+   гарантовано ловить 401 і, якщо R вже завершився (`refreshPromise = null` у `finally`),
+   запускає **другий** refresh.
+2. **Немає перевірки «а чи не застарів мій 401».** Запит C відправлений до R, а 401
+   отримав після. Токен у стані вже свіжий — refresh не потрібен, потрібен лише ретрай.
+   Поточний код цього не розрізняє. Це та сама діра, що й №1, але з іншого боку —
+   і саме її **не** закриває класичний рецепт з доків RTK (`mutex.waitForUnlock()` лише
+   перед запитом).
+3. **Reauth на ендпоінтах, де 401 означає інше.** `POST /auth/login` з невірним паролем
+   віддає 401 (`auth.service.ts:72-75`) → обгортка запускає refresh → при провалі
+   `dispatch(logout())`. Невірний пароль ≠ протухлий токен. Та сама логіка стосується
+   `/auth/register` і самого `/auth/refresh`.
+4. **Ручна підстановка `authorization` у `reauthedArgs`** — зайва. Після
+   `dispatch(updateAccessToken(...))` стан уже містить новий токен, а `prepareHeaders`
+   читає стан на **кожному** виклику `baseQuery`. Дубль логіки = місце, де колись
+   розійдуться дві версії правди про заголовок.
+
+**Інваріант, до якого йдемо:**
+
+> Refresh робиться лише тоді, коли 401 отримано **з тим самим токеном, що зараз у
+> стані**, і ніхто інший refresh не робить. У всіх інших випадках — чекаємо / ретраїмо.
+
+Звідси алгоритм (псевдокод, не реалізація):
+
+```
+baseQueryWithReauth(args):
+  await mutex.waitForUnlock()                 // барʼєр на вході (діра 1)
+  tokenUsed = state.auth.accessToken          // знімок ДО запиту
+  result = baseQuery(args)
+  if result не 401 або args — auth-ендпоінт: return result      (діра 3)
+
+  if mutex.isLocked():                        // хтось уже рефрешить
+     await mutex.waitForUnlock(); return baseQuery(args)
+  if state.auth.accessToken !== tokenUsed:    // рефреш уже був, мій 401 застарів (діра 2)
+     return baseQuery(args)
+
+  release = await mutex.acquire()
+  try:
+     // double-check: між isLocked() і acquire() хтось міг встигнути
+     if state.auth.accessToken !== tokenUsed: return baseQuery(args)
+     newToken = await refreshAccessToken()
+     if newToken: dispatch(updateAccessToken); return baseQuery(args)   (діра 4: без ручних headers)
+     else:        dispatch(logout()); return result
+  finally:
+     release()
+```
+
+Ретрай — **рівно один**. Якщо ретрай теж 401 — повертаємо помилку, нового refresh не
+робимо (інакше це і є нескінченний цикл).
 
 **Що зробити**
-1. Додати мʼютекс у `baseApi.ts` (модульна змінна поряд з `baseQueryWithReauth`).
-   Можна `pnpm add async-mutex`, можна власні ~15 рядків — на твій вибір,
-   обґрунтуй у комміті.
-2. Перед основним викликом `baseQuery`: якщо мʼютекс залочений — дочекатись розлочення
-   (тоді в стані вже буде свіжий токен, і `prepareHeaders` візьме його сам).
-3. Логіку 401 переписати під `acquire`/`release`.
-4. `refreshAccessToken` лишається голим `fetch` (це свідомо: інакше зайдеш у рекурсію
-   через власний reauth). **Але** прибери `console.warn/console.error` з продакшн-шляху
-   або сховай за `process.env.NODE_ENV !== 'production'`.
-5. Якщо refresh не вдався — `dispatch(logout())` (на цьому кроці ще стара семантика;
-   повний логаут буде в Кроці 6).
+1. Мʼютекс — модульна змінна в `baseApi.ts`. Два варіанти, обери й обґрунтуй у
+   комміті:
+   - `pnpm --filter frontend-next add async-mutex` — `Mutex` з `acquire()`,
+     `isLocked()`, `waitForUnlock()`;
+   - власний на промісах (~15 рядків). Підказка: достатньо одного
+     `let current: Promise<void> | null` + функції `lock()`, що повертає `release`.
+     Саме `refreshPromise` — вже майже він, тільки зараз він звільняється зсередини
+     refresh-функції, а не тим, хто взяв лок.
+2. Скелет, який треба заповнити:
+   ```ts
+   const NO_REAUTH = new Set(['/auth/login', '/auth/register', '/auth/refresh'])
+
+   const urlOf = (args: string | FetchArgs) =>
+     typeof args === 'string' ? args : args.url
+
+   const baseQueryWithReauth: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError> =
+     async (args, api, extraOptions) => {
+       // TODO: барʼєр на вході
+       // TODO: знімок токена ДО запиту (api.getState() as RootState)
+       let result = await baseQuery(args, api, extraOptions)
+
+       // TODO: не 401 або NO_REAUTH.has(urlOf(args)) → return result
+
+       // TODO: гілка «хтось уже рефрешить»
+       // TODO: гілка «токен у стані вже інший, ніж tokenUsed»
+       // TODO: acquire → double-check → refresh → updateAccessToken + один ретрай | logout
+       // TODO: release у finally
+
+       return result
+     }
+   ```
+   Зверни увагу: `urlOf` порівнює **відносний** шлях (`/auth/login`), бо `baseUrl`
+   додає `fetchBaseQuery`, а не ти.
+3. `refreshAccessToken` лишається голим `fetch` — свідомо: через `baseQuery` refresh
+   зайшов би в рекурсію власного reauth. Всередині неї більше **немає** `refreshPromise`
+   і `finally` — серіалізацією займається мʼютекс, функція стає «тупою»: один запит →
+   `string | null`.
+4. `console.warn` / `console.error` — прибрати або сховати за
+   `process.env.NODE_ENV !== 'production'`.
+5. `reauthedArgs` з ручним `authorization` — видалити, ретрай просто
+   `baseQuery(args, api, extraOptions)`.
+6. Refresh провалився → `dispatch(logout())` (стара семантика; справжній логаут — Крок 6).
+7. `apps/frontend` (Vite) — у Кроці 2 ти переніс `baseApi` туди 1:1. Або повтори
+   зміну й там, або явно зафіксуй у журналі, що Vite-фронт заморожено. Два майже
+   однакові `baseApi.ts`, що розходяться, — гірше за будь-який з варіантів.
 
 **Критерії приймання**
-- [ ] Тест руками: зламай токен у localStorage, відкрий сторінку, де паралельно летять
-      ≥2 запити (напр. головна: `getEvents` + `getProfile`). У Network **рівно один**
-      `POST /auth/refresh`, обидва запити успішні після ретраю.
+- [ ] Зламай токен у localStorage (`abc`), `F5` на головній (`getEvents` + `getProfile`
+      летять паралельно). У Network **рівно один** `POST /auth/refresh`, обидва запити
+      → 200 після ретраю.
 - [ ] У логах бекенду **немає** `Refresh token reuse detected`.
-- [ ] Якщо refresh віддав 401 (зіпсуй кукі) — юзера розлогінює один раз, без циклу
-      запитів (перевір, що в Network немає нескінченного `refresh → 401 → refresh`).
+- [ ] Логін з невірним паролем → у Network **немає** `POST /auth/refresh`, форма
+      показує помилку логіну.
+- [ ] Зіпсуй кукі `refreshToken` (DevTools → Cookies → зміни значення) + зламай токен →
+      `F5`: один `refresh` → 401 → логаут. **Немає** циклу `refresh → 401 → refresh`.
+- [x] У `baseApi.ts` немає `refreshPromise` і ручного `authorization` у ретраї.
+- [x] `tsc --noEmit` і `eslint features` — без помилок.
+
+**Як спровокувати діру 2 руками (бонус, для розуміння).** DevTools → Network →
+throttling «Slow 3G», зламай токен, `F5`, і швидко клацни на сторінку івенту. Із
+старим кодом інколи побачиш **два** `/auth/refresh`; з новим — ніколи. Не критерій
+приймання (нестабільно відтворюється), але добре показує, навіщо знімок токена.
+
+**Питання на ревʼю** (відповідь усно, не в коді): чому double-check після `acquire()`
+потрібен, якщо щойно перед ним ми вже перевірили `isLocked()` і токен?
 
 ---
 
@@ -953,12 +1050,13 @@ Broadcast робить це негайним і чистим.
 |---|---|---|---|
 | 0. isMounted + hydration | 🟨 в роботі | 2026-09-27 | Перша спроба: гейт інвертований (`if (isMounted)` → скелетон назавжди). ТЗ переписано: `useEffect`+`setState` не проходить лінт (`react-hooks/set-state-in-effect`, plugin v7.1.1) → перейшли на `useIsHydrated` через `useSyncExternalStore`. **Ревʼю 2026-09-28**: хук ✅, гейт `!isHydrated \|\| isLoading` ✅, `isMounted`+ефект прибрані ✅, `tsc` чистий, eslint 0 errors. Імпорт `useState` прибрано, eslint — лише `no-img-element` (Крок 5). Лишилось: ручна перевірка в браузері (консоль, релоад залогіненим/анонімом) |
 | 1. Тип AuthResponse | ✅ зроблено | 2026-09-28 | Обрано варіант з перейменуванням: `AuthTokensResult` (бекенд, 3 поля) + `LoginResponse` (тіло HTTP, без `refreshToken`). Переведено обидва фронти (`frontend-next` і старий `frontend`). `pnpm build` (усі пакети) — зелений. Кореневий `build` виправлено: був копією скрипта `shared` (`tsup` у корені без конфіга) → `pnpm -r build`, додано `build:shared`. Хвости: невикористаний імпорт `AuthTokensResult` у `auth.controller.ts:24` (успадковано від `AuthResponse`, eslint error); мертвий `apps/backend/src/common/interfaces/auth.interface.ts` (ніхто не імпортує) |
-| 2. Єдиний baseApi | 🟨 код готовий, чекає ручної перевірки | 2026-09-28 | ✅ `baseApi` (reauth + `credentials: 'include'`), ✅ `authApi`/`eventsApi` → `injectEndpoints`, ✅ `store.ts` лише на `baseApi`, ✅ `UserBar` → `baseApi.util.resetApiState()`, ✅ `'MyEvents'` → `{Event, 'MY_CALENDAR'}` у join/leave (тег ніхто не провайдив → календар не оновлювався після join). Поза ТЗ: `getEvents` — аргумент обовʼязковий (прибрано `\| void` і `params \|\| {}`) → один канонічний cache key. `tsc` чистий, `next build` зелений. Лишилось: DevTools (один ключ `api`), 401 на `/events` → refresh → retry, смоук логін/join/leave/create/edit **`apps/frontend` (Vite, 2026-09-28)**: Крок 0 не застосовний (SPA, `createRoot`, без SSR); Крок 1 уже був; Крок 2 перенесено 1:1 (`src/features/api/baseApi.ts`, `injectEndpoints`, `store.ts`, `UserBar`), календар-тег `'MyEvents'` → `{Event,'MY_CALENDAR'}`, create/update/delete вирівняні з Next; видалено мертвий дубль `src/store/index.ts`. `tsc -b` + `vite build` зелені |
-| 3. Single-flight mutex | ⬜ не почато | — | |
-| 4. Токен у памʼяті + bootstrap | ⬜ не почато | — | |
-| 5. getProfile як джерело правди | ⬜ не почато | — | |
-| 6. Справжній логаут | ⬜ не почато | — | |
-| 7. Мультитаб | ⬜ не почато | — | |
+| 2. Єдиний baseApi | 🟨 код готовий, чекає ручної перевірки | 2026-09-28 | ✅ `baseApi` (reauth + `credentials: 'include'`), ✅ `authApi`/`eventsApi` → `injectEndpoints`, ✅ `store.ts` лише на `baseApi`, ✅ `UserBar` → `baseApi.util.resetApiState()`, ✅ `'MyEvents'` → `{Event, 'MY_CALENDAR'}` у join/leave (тег ніхто не провайдив → календар не оновлювався після join). Поза ТЗ: `getEvents` — аргумент обовʼязковий (прибрано `\| void` і `params \|\| {}`) → один канонічний cache key. `tsc` чистий, `next build` зелений. Лишилось: DevTools (один ключ `api`), 401 на `/events` → refresh → retry, смоук логін/join/leave/create/edit **`apps/frontend` (Vite, 2026-09-28)**: Крок 0 не застосовний (SPA, `createRoot`, без SSR); Крок 1 уже був; Крок 2 перенесено 1:1 (`src/features/api/baseApi.ts`, `injectEndpoints`, `store.ts`, `UserBar`), календар-тег `'MyEvents'` → `{Event,'MY_CALENDAR'}`, create/update/delete вирівняні з Next; видалено мертвий дубль `src/store/index.ts`. `tsc -b` + `vite build` зелені. **Ревʼю 2026-09-29**: код кроків 0–2 закомічено в `6b88bee` одним коммітом «added baseApi» (разом зі змінами `auth.service.ts`/`refresh-cookie.ts` поза цим ТЗ) — правило «крок = комміт» і обґрунтування `MyEvents` у месседжі не виконані. `tsc` frontend-next + backend чисті, eslint 0 errors. Хвіст Кроку 1: невикористаний імпорт у контролері прибрано ✅, але `common/interfaces/auth.interface.ts` не видалено, а перейменовано → тепер **два** `AuthTokensResult` (shared + мертвий локальний) — видалити файл. Ручні перевірки кроків 0 і 2 досі не підтверджені |
+| 3. Single-flight mutex | 🟨 код готовий, чекає ручної перевірки | 2026-09-29 | Реалізовано мною (на прохання Borys, поза менторським форматом). Власний лок на промісах, без `async-mutex`: захоплення синхронне (між перевіркою `refreshLock` і `acquireRefreshLock()` немає `await`), тому double-check після acquire не потрібен — він потрібен лише з асинхронним `acquire()` у `async-mutex`. Барʼєр на вході (`waitForRefresh`), знімок `tokenUsed` → застарілий 401 лише ретраїться, `NO_REAUTH_URLS` для login/register/refresh, ретрай рівно один через `prepareHeaders` (ручний `authorization` прибрано), `refreshPromise` прибрано, лог лише в dev. Той самий код у `apps/frontend` (Vite, `import.meta.env.DEV`). `tsc` обох фронтів + `vite build` зелені. Лишилось: ручні критерії (один `/auth/refresh` при паралельних 401, нема reuse-detection у логах, невірний пароль без refresh, битий cookie без циклу) |
+| 4. Токен у памʼяті + bootstrap | 🟨 код готовий, чекає ручної перевірки | 2026-09-29 | Реалізовано мною на прохання Borys (він почав `authSlice`: `initialState` без localStorage). **Відхилення від ТЗ**: (1) refresh-логіка винесена не в `refreshClient.ts`, а в `features/auth/session.ts` — там single-flight `refreshSession()` (заміняє лок Кроку 3; проміс резолвиться після dispatch токена) і ідемпотентний `bootstrapSession()`; (2) `baseQueryWithReauth` **на вході чекає bootstrap** — інакше запити, що стартують до його завершення (напр. `getEventById`), йшли б анонімно і `isJoined` приходив би хибним; хто перший — `AuthBootstrap` чи перший запит — той і стартує bootstrap, StrictMode-подвійний ефект ділить той самий проміс; (3) 401 з `tokenUsed === null` не рефрешиться (анонім після bootstrap — нема що рефрешити); (4) `API_BASE_URL`/`IS_DEV` → `features/api/config.ts` (розрив циклу імпортів). `authSlice`: лише `accessToken` + `bootstrapStatus`, екшени `setAccessToken`/`logout`/`bootstrapStarted`/`bootstrapFinished`. Новий хук `useCurrentUser` (getProfile зі `skip` без токена) — у `UserBar` і двох сторінках замість `selectCurrentUser`. `UserBar` частково випередив Крок 5: прибрано `useEffect`/`cachedUser`/`displayUser`/`isHydrated`, гейт — `bootstrapStatus !== 'done' \|\| isLoading`. Форми → `setAccessToken(result.accessToken)`. `useIsHydrated.ts` тепер ніде не використовується (лишив — рішення за Borys). `apps/frontend` (Vite) цей крок **не** отримав — компілюється на старій схемі. tsc/eslint (0 errors)/`next build` зелені. Для Кроку 5 лишились: теги `Profile`, `onQueryStarted`, `alt`/`next/image` |
+| 5. getProfile як джерело правди | 🟨 код готовий, чекає ручної перевірки | 2026-09-29 | Реалізовано мною на прохання Borys; `UserBar` з `skip: bootstrapStatus !== 'done' \|\| !hasToken` написав він сам — лишено, прибрано лише `//` в імпорті й дубль імпорту з `authSlice`. `getProfile` → `providesTags: ['Profile']`. `login`/`register` → `onQueryStarted` (спільний хелпер `storeAccessToken`) + `invalidatesTags` лише при успіху. **Поза ТЗ**: інвалідують не тільки `Profile`, а й увесь тип `'Event'` — кеш івентів зібраний анонімно (`isJoined`) і після логіну інакше лишався б stale до 60 с. Форми більше не диспатчать нічого. Аватарка: `alt=""`; `next/image` **свідомо не взято** — `avatarUrl` може бути з будь-якого хоста, а `remotePatterns` вимагає whitelist → `<img>` + `eslint-disable-next-line` з поясненням. `useCurrentUser` (сторінки) має `skip: !hasToken` без перевірки bootstrap — функціонально те саме (токен зʼявляється лише в bootstrap/логіні), але правило описане двічі. tsc/eslint (0 problems)/`next build` зелені. **Виправлення 2026-09-29 (повторне ревʼю)**: `invalidatesTags` на login/register прибрано — інвалідація спрацьовувала на `fulfilled`-екшені, тобто **до** того, як `onQueryStarted` записав токен → перезапит міг піти анонімно. Тепер у `storeAccessToken` явний порядок: `setAccessToken` → `invalidateTags(['Profile','Event'])` → broadcast |
+| 6. Справжній логаут | 🟨 код готовий, чекає ручної перевірки | 2026-09-29 | Реалізовано мною на прохання Borys. `authApi.logout` (`POST /auth/logout`, `useLogoutMutation`). `UserBar.handleLogout`: `await logoutRequest().unwrap()` → `catch` (офлайн/500 — ковтаємо) → `finally`: `logout()` + `baseApi.util.resetApiState()` + `router.push('/auth/login')`; кнопка `disabled` на час запиту. **Поза ТЗ**: `/auth/logout` додано в `NO_REAUTH_URLS` — бекенд віддає 401 без кукі, і без виключення обгортка при протухлому access-токені зробила б refresh (ротацію) сесії, яку ми закриваємо. Локальне чищення свідомо в компоненті, а не в `onQueryStarted`: проміс тригера не чекає lifecycle-хендлер, тож `router.push` міг би обігнати `logout()`. tsc/eslint/`next build` зелені. Для Кроку 7: послідовність «локальний логаут» варто винести в одну функцію — її ж викликатиме `BroadcastChannel`-підписка |
+| 7. Мультитаб | 🟨 код готовий, чекає ручної перевірки | 2026-09-29 | Реалізовано мною на прохання Borys. `features/auth/authChannel.ts`: канал `syncevent-auth`, повідомлення `{type:'logout'}` / `{type:'login'}` — **без токена**. Один обʼєкт каналу на вкладку для відправки й прийому (`BroadcastChannel` не доставляє повідомлення обʼєкту-відправнику → вкладка не реагує на власну подію). Створюється лише в `useEffect` (`AuthBootstrap`), закривається в cleanup; SSR-безпечно. `clearLocalSession()` (= `logout()` + `resetApiState()`) — спільна для `UserBar` і підписки. `logout` → broadcast з `UserBar` після локального чищення. Опційний `login` зроблено: broadcast з `onQueryStarted` login/register; вкладка-отримувач робить **свій** `refreshSession()` (кукі спільна), потім `resetApiState()` — покриває й випадок, коли в іншій вкладці зайшов інший юзер. Вимушений логаут через провал refresh **не** бродкаститься (свідомо: анонімна вкладка з невдалим bootstrap розлогінила б інші). Відомий ризик: `login`-broadcast у N вкладок = N паралельних `/auth/refresh` з однією кукі → reuse-detection рятує лише `GRACE_PERIOD_MS` (див. §9, «лідер робить refresh»). tsc/eslint/`next build` зелені |
+| 3–7 → `apps/frontend` (Vite) | 🟨 код готовий, чекає ручної перевірки | 2026-09-29 | Кроки 3–7 (з фіксом гонки Кроку 5) перенесено 1:1 на прохання Borys: `features/api/config.ts` (`import.meta.env`), `baseApi.ts`, `auth/session.ts`, `authSlice.ts`, `authApi.ts`, `authChannel.ts`, `AuthBootstrap.tsx` (у `main.tsx` всередині `<Provider>`), `useCurrentUser.ts`, `UserBar` (`useNavigate`), форми, `EventsPage`/`EventDetailsPage`. Крок 0 не застосовний (SPA без SSR), але `bootstrapStatus` так само дає скелетон замість хибного «Sign In». `grep localStorage src` — порожньо; `tsc -b` + `vite build` зелені. ESLint-конфіг Vite не покриває `src` (успадковано, не чіпав). Мертвий `src/App.tsx` (не імпортується з `main.tsx`) не чіпав |
 | 8. AuthGate / logout-all (опц.) | ⬜ не почато | — | |
 
 Легенда: ⬜ не почато · 🟨 в роботі · ✅ зроблено · ⏭️ свідомо пропущено

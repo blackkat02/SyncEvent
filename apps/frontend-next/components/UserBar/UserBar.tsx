@@ -1,47 +1,41 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
 import { LogOut } from "lucide-react";
-import { useGetProfileQuery } from "@/features/auth/authApi";
-import { baseApi } from "@/features/api/baseApi";
 import { useAppSelector, useAppDispatch } from "@/store/store";
-import {
-  selectIsAuthenticated,
-  selectCurrentUser,
-  setCredentials,
-  logout,
-} from "@/features/auth/authSlice";
-import {useIsHydrated } from "@/features/hooks/useIsHydrated"
+import { useGetProfileQuery, useLogoutMutation } from "@/features/auth/authApi";
+import { selectAccessToken, selectBootstrapStatus } from "@/features/auth/authSlice";
+import { broadcastAuth, clearLocalSession } from "@/features/auth/authChannel";
 
 export const UserBar: React.FC = () => {
   const router = useRouter();
   const dispatch = useAppDispatch();
-  const isAuthenticated = useAppSelector(selectIsAuthenticated);
-  const cachedUser = useAppSelector(selectCurrentUser);
-  const isHydrated = useIsHydrated()
-
+  const bootstrapStatus = useAppSelector(selectBootstrapStatus)
+  const hasToken = useAppSelector(selectAccessToken) !== null
   const { data: user, isLoading } = useGetProfileQuery(undefined, {
-    skip: !isAuthenticated,
-  });
+    skip: bootstrapStatus !== 'done' || !hasToken,
+  })
+  const [logoutRequest, { isLoading: isLoggingOut }] = useLogoutMutation();
 
-  useEffect(() => {
-    if (user && !cachedUser) {
-      dispatch(
-        setCredentials({
-          user,
-          accessToken: localStorage.getItem("accessToken") ?? "",
-        }),
-      );
+  // Server first (the cookie still goes out with the request), then local cleanup —
+  // always, even offline or on 500: the user asked to leave, the UI must obey.
+  const handleLogout = async () => {
+    try {
+      await logoutRequest().unwrap();
+    } catch {
+      // Server-side revoke failed; the cookie expires on its own. Still log out locally.
+    } finally {
+      clearLocalSession(dispatch);
+      broadcastAuth({ type: "logout" });
+      router.push("/auth/login");
     }
-  }, [user, cachedUser, dispatch]);
+  };
 
-  const displayUser = cachedUser ?? user;
-
-  if (!isHydrated || isLoading)
+  // Server render and the hydration pass both see 'idle' → same skeleton, no mismatch.
+  if (bootstrapStatus !== "done" || isLoading)
     return <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse" />;
 
-  if (!displayUser)
+  if (!user)
     return (
       <button
         onClick={() => router.push("/auth/login")}
@@ -54,26 +48,29 @@ export const UserBar: React.FC = () => {
   return (
     <div className="flex items-center gap-3 p-2 rounded-full hover:bg-gray-100 cursor-pointer">
       <div className="relative w-10 h-10 overflow-hidden rounded-full ring-2 ring-indigo-100">
+        {/* Plain <img> on purpose: avatarUrl can point at any host, and next/image only
+            loads hosts whitelisted in next.config remotePatterns. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={
-            displayUser.avatarUrl ??
-            `https://ui-avatars.com/api/?name=${encodeURIComponent(displayUser.displayName ?? displayUser.email)}`
+            user.avatarUrl ??
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName ?? user.email)}`
           }
-          alt={displayUser.displayName ?? displayUser.email}
+          // Decorative: the name is already rendered as text right next to it.
+          alt=""
           className="w-full h-full object-cover"
         />
       </div>
       <span className="text-sm font-medium text-gray-700 hidden md:inline">
-        {displayUser.displayName ?? displayUser.email}
+        {user.displayName ?? user.email}
       </span>
       <button
         onClick={(e) => {
           e.stopPropagation();
-          dispatch(logout());
-          dispatch(baseApi.util.resetApiState());
-          router.push("/auth/login");
+          void handleLogout();
         }}
-        className="p-1.5 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+        disabled={isLoggingOut}
+        className="p-1.5 rounded-full hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         title="Sign out"
       >
         <LogOut size={16} />

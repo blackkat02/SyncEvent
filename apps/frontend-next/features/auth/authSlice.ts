@@ -1,54 +1,41 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
-import type { UserProfile } from '@syncevent/shared'
 import type { RootState } from '../../store/store'
 
+// Only the credential lives here, and only in memory. The user is server data — it lives
+// in the RTK Query cache (getProfile). The session survives a reload via the httpOnly
+// refresh cookie + bootstrap (features/auth/session.ts), never via browser storage.
 interface AuthState {
-  user: UserProfile | null
   accessToken: string | null
+  // 'idle' / 'pending' = "don't know who you are yet" — render a skeleton, not "Sign In".
+  bootstrapStatus: 'idle' | 'pending' | 'done'
 }
 
-// SSR guard: this module loads inside app/providers.tsx ("use client"), which Next.js
-// still renders once on the server to produce the initial HTML — localStorage doesn't
-// exist there. Browser hydration re-runs this module client-side with the real values.
 const initialState: AuthState = {
-  user: typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') ?? 'null') : null,
-  accessToken: typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null,
+  accessToken: null,
+  bootstrapStatus: 'idle',
 }
 
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    setCredentials: (
-      state,
-      action: PayloadAction<{
-        user: UserProfile
-        accessToken: string
-      }>
-    ) => {
-      state.user = action.payload.user
-      state.accessToken = action.payload.accessToken
-      localStorage.setItem('accessToken', action.payload.accessToken)
-      localStorage.setItem('user', JSON.stringify(action.payload.user))
-    },
-    updateAccessToken: (
-      state,
-      action: PayloadAction<{ accessToken: string }>
-    ) => {
-      state.accessToken = action.payload.accessToken
-      localStorage.setItem('accessToken', action.payload.accessToken)
+    setAccessToken: (state, action: PayloadAction<string>) => {
+      state.accessToken = action.payload
     },
     logout: (state) => {
-      state.user = null
       state.accessToken = null
-      localStorage.removeItem('accessToken')
-      localStorage.removeItem('user')
+    },
+    bootstrapStarted: (state) => {
+      state.bootstrapStatus = 'pending'
+    },
+    bootstrapFinished: (state) => {
+      state.bootstrapStatus = 'done'
     },
   },
 })
 
-export const { setCredentials, updateAccessToken, logout } = authSlice.actions
+export const { setAccessToken, logout, bootstrapStarted, bootstrapFinished } = authSlice.actions
 export default authSlice.reducer
 
-export const selectCurrentUser = (state: RootState) => state.auth.user
-export const selectIsAuthenticated = (state: RootState) => !!state.auth.accessToken
+export const selectAccessToken = (state: RootState) => state.auth.accessToken
+export const selectBootstrapStatus = (state: RootState) => state.auth.bootstrapStatus

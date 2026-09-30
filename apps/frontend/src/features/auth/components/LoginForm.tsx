@@ -1,14 +1,11 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useNavigate } from "react-router-dom";
-import { useAppDispatch } from "../../../store/hooks";
 import { loginSchema, type LoginDto } from "@syncevent/shared";
 import { useLoginMutation } from "../authApi";
-import { setCredentials } from "../authSlice";
 
 export const LoginForm = () => {
   const navigate = useNavigate();
-  const dispatch = useAppDispatch();
   const [login, { isLoading, error }] = useLoginMutation();
 
   const {
@@ -21,8 +18,8 @@ export const LoginForm = () => {
 
   const onSubmit = async (data: LoginDto) => {
     try {
-      const result = await login(data).unwrap();
-      dispatch(setCredentials(result));
+      // The token is stored by the mutation itself (onQueryStarted in authApi).
+      await login(data).unwrap();
       navigate("/");
     } catch (err) {
       console.error("Login failed:", err);
