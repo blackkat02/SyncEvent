@@ -24,6 +24,7 @@ const IGNORE_DIRS = new Set([
   "coverage",
   ".turbo",
   ".pnpm-store",
+  ".kilo",
 ]);
 const MAX_DEPTH = 6;
 
@@ -59,7 +60,6 @@ const FILES_TO_DUMP = [
   "apps/backend/Dockerfile",
   "apps/backend/package.json",
   "apps/backend/prisma/schema.prisma",
-  "apps/backend/scripts/check-db.js",
   "apps/frontend/Dockerfile",
   "apps/frontend/package.json",
   "packages/shared/package.json",

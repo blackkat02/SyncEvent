@@ -1,5 +1,5 @@
 # SyncEvent — Project Diagnostic
-Generated: 2026-09-14T18:05:39.137Z
+Generated: 2026-09-30T09:14:40.571Z
 
 ## Project tree
 
@@ -48,7 +48,6 @@ Generated: 2026-09-14T18:05:39.137Z
 │   │   ├── nest-cli.json
 │   │   ├── package.json
 │   │   ├── prisma/
-│   │   │   ├── .migrations_backup/
 │   │   │   ├── migrations/
 │   │   │   │   ├── 20260307202939_init/
 │   │   │   │   │   └── migration.sql
@@ -78,7 +77,6 @@ Generated: 2026-09-14T18:05:39.137Z
 │   │   │   └── seed.ts
 │   │   ├── prisma.config.ts
 │   │   ├── scripts/
-│   │   │   ├── check-db.js
 │   │   │   ├── drive-seeded-tests.ts
 │   │   │   ├── entrypoint.sh
 │   │   │   └── smoke-booking.ts
@@ -108,7 +106,8 @@ Generated: 2026-09-14T18:05:39.137Z
 │   │   │   │   └── booking.processor.ts
 │   │   │   ├── common/
 │   │   │   │   ├── decorators/
-│   │   │   │   │   └── get-user.decorator.ts
+│   │   │   │   │   ├── get-user.decorator.ts
+│   │   │   │   │   └── refresh-cookie.ts
 │   │   │   │   ├── dto/
 │   │   │   │   │   └── pagination.dto.ts
 │   │   │   │   ├── filters/
@@ -120,7 +119,6 @@ Generated: 2026-09-14T18:05:39.137Z
 │   │   │   │   ├── interceptors/
 │   │   │   │   │   └── transform.interceptor.ts
 │   │   │   │   ├── interfaces/
-│   │   │   │   │   ├── auth.interface.ts
 │   │   │   │   │   └── event.interface.ts
 │   │   │   │   └── pipes/
 │   │   │   ├── events/
@@ -173,7 +171,6 @@ Generated: 2026-09-14T18:05:39.137Z
 │   │   │   └── vite.svg
 │   │   ├── src/
 │   │   │   ├── App.css
-│   │   │   ├── App.tsx
 │   │   │   ├── assets/
 │   │   │   │   └── react.svg
 │   │   │   ├── components/
@@ -183,12 +180,19 @@ Generated: 2026-09-14T18:05:39.137Z
 │   │   │   │       ├── Header.tsx
 │   │   │   │       └── MainLayout.tsx
 │   │   │   ├── features/
+│   │   │   │   ├── api/
+│   │   │   │   │   ├── baseApi.ts
+│   │   │   │   │   └── config.ts
 │   │   │   │   ├── auth/
+│   │   │   │   │   ├── AuthBootstrap.tsx
 │   │   │   │   │   ├── authApi.ts
+│   │   │   │   │   ├── authChannel.ts
 │   │   │   │   │   ├── authSlice.ts
-│   │   │   │   │   └── components/
-│   │   │   │   │       ├── LoginForm.tsx
-│   │   │   │   │       └── RegisterForm.tsx
+│   │   │   │   │   ├── components/
+│   │   │   │   │   │   ├── LoginForm.tsx
+│   │   │   │   │   │   └── RegisterForm.tsx
+│   │   │   │   │   ├── session.ts
+│   │   │   │   │   └── useCurrentUser.ts
 │   │   │   │   ├── calendar/
 │   │   │   │   │   └── components/
 │   │   │   │   │       └── CalendarHeader.tsx
@@ -209,12 +213,86 @@ Generated: 2026-09-14T18:05:39.137Z
 │   │   │   │   └── index.tsx
 │   │   │   └── store/
 │   │   │       ├── hooks.ts
-│   │   │       ├── index.ts
 │   │   │       └── store.ts
 │   │   ├── tsconfig.app.json
 │   │   ├── tsconfig.json
 │   │   ├── tsconfig.node.json
 │   │   └── vite.config.ts
+│   ├── frontend-next/
+│   │   ├── .env.example
+│   │   ├── .env.local
+│   │   ├── .gitignore
+│   │   ├── AGENTS.md
+│   │   ├── CLAUDE.md
+│   │   ├── Dockerfile
+│   │   ├── README.md
+│   │   ├── app/
+│   │   │   ├── (main)/
+│   │   │   │   ├── events/
+│   │   │   │   │   ├── [id]/
+│   │   │   │   │   │   ├── edit/
+│   │   │   │   │   │   └── page.tsx
+│   │   │   │   │   └── create/
+│   │   │   │   │       └── page.tsx
+│   │   │   │   ├── layout.tsx
+│   │   │   │   ├── my-events/
+│   │   │   │   │   └── page.tsx
+│   │   │   │   └── page.tsx
+│   │   │   ├── auth/
+│   │   │   │   ├── components/
+│   │   │   │   │   ├── LoginForm.tsx
+│   │   │   │   │   └── RegisterForm.tsx
+│   │   │   │   ├── login/
+│   │   │   │   │   └── page.tsx
+│   │   │   │   └── register/
+│   │   │   │       └── page.tsx
+│   │   │   ├── favicon.ico
+│   │   │   ├── globals.css
+│   │   │   ├── layout.tsx
+│   │   │   └── providers.tsx
+│   │   ├── components/
+│   │   │   ├── UserBar/
+│   │   │   │   └── UserBar.tsx
+│   │   │   ├── common/
+│   │   │   └── layout/
+│   │   │       └── Header.tsx
+│   │   ├── eslint.config.mjs
+│   │   ├── features/
+│   │   │   ├── api/
+│   │   │   │   ├── baseApi.ts
+│   │   │   │   └── config.ts
+│   │   │   ├── auth/
+│   │   │   │   ├── AuthBootstrap.tsx
+│   │   │   │   ├── authApi.ts
+│   │   │   │   ├── authChannel.ts
+│   │   │   │   ├── authSlice.ts
+│   │   │   │   ├── session.ts
+│   │   │   │   └── useCurrentUser.ts
+│   │   │   ├── calendar/
+│   │   │   │   └── components/
+│   │   │   │       └── CalendarHeader.tsx
+│   │   │   └── events/
+│   │   │       ├── components/
+│   │   │       │   └── EventCard.tsx
+│   │   │       └── eventsApi.ts
+│   │   ├── next-env.d.ts
+│   │   ├── next.config.ts
+│   │   ├── package.json
+│   │   ├── postcss.config.mjs
+│   │   ├── public/
+│   │   │   ├── file.svg
+│   │   │   ├── globe.svg
+│   │   │   ├── next.svg
+│   │   │   ├── vercel.svg
+│   │   │   └── window.svg
+│   │   ├── screens/
+│   │   │   ├── CreateEditEventPage.tsx
+│   │   │   └── MyEventsCalendar.tsx
+│   │   ├── store/
+│   │   │   ├── hooks.ts
+│   │   │   └── store.ts
+│   │   ├── tsconfig.json
+│   │   └── tsconfig.tsbuildinfo
 │   └── notifications-service/
 │       ├── .prettierrc
 │       ├── Dockerfile
@@ -234,16 +312,18 @@ Generated: 2026-09-14T18:05:39.137Z
 │       │   └── jest-e2e.json
 │       ├── tsconfig.build.json
 │       └── tsconfig.json
-├── build-log.txt
 ├── docker-compose.yml
 ├── docs/
-│   ├── SESSION-HANDOFF-refresh-tokens.md
-│   ├── SESSION-HANDOFF.md
-│   └── architecture/
-│       ├── booking-concurrency.md
-│       ├── nestjs-zod-migration.md
-│       ├── refresh-token-rotation.md
-│       └── scheduled-tasks-worker.md
+│   ├── architecture/
+│   │   ├── booking-concurrency.md
+│   │   ├── chess-multiplayer.md
+│   │   ├── frontend-auth-rtk-query.md
+│   │   ├── nestjs-zod-migration.md
+│   │   ├── nextjs-migration.md
+│   │   ├── refresh-token-rotation.md
+│   │   └── scheduled-tasks-worker.md
+│   └── review/
+│       └── backend-audit-2026-09-29.md
 ├── eslint.config.mjs
 ├── gather-project-info.mjs
 ├── package-lock.json
@@ -309,7 +389,7 @@ x-backend-env-common: &backend-env-common
   JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN}
   JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN}
   NODE_ENV: ${NODE_ENV:-development}
-  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173}
+  CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3001}
   # Redis-черга бронювання (Фаза 1) — RedisService/BullMQ підключаються сюди,
   # а не до "localhost" (дефолт поза контейнером), тож без цього backend
   # у compose тихо не знаходив би Redis.
@@ -319,7 +399,7 @@ x-backend-env-common: &backend-env-common
   KAFKA_BROKER: kafka:9092
 
 services:
-  # ---------- PostgreSQL (--profile postgres) ----------
+  # ---------- PostgreSQL ----------
   db-postgres:
     image: postgres:16-alpine
     container_name: sync-event-db-postgres
@@ -339,27 +419,23 @@ services:
       - pgdata:/var/lib/postgresql/data
     networks:
       - sync-network
-    profiles: ["postgres"]
 
   backend-init:
     <<: *backend-base
     container_name: sync-event-init
     environment:
       <<: *backend-env-common
-      DB_PROVIDER: postgresql
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-postgres:5432/${POSTGRES_DB}?schema=public
       MODE: init
     depends_on:
       db-postgres:
         condition: service_healthy
-    profiles: ["postgres"]
 
   backend:
     <<: *backend-base
     container_name: sync-event-backend
     environment:
       <<: *backend-env-common
-      DB_PROVIDER: postgresql
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db-postgres:5432/${POSTGRES_DB}?schema=public
       MODE: serve
     ports:
@@ -367,7 +443,6 @@ services:
     depends_on:
       backend-init:
         condition: service_completed_successfully
-    profiles: ["postgres"]
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -385,58 +460,6 @@ services:
     depends_on:
       db-postgres:
         condition: service_healthy
-    profiles: ["postgres"]
-
-  # ---------- MySQL (--profile mysql) ----------
-  db-mysql:
-    image: mysql:8.0
-    container_name: sync-event-db-mysql
-    environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
-      MYSQL_USER: ${MYSQL_USER}
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
-      MYSQL_DATABASE: ${MYSQL_DATABASE}
-    ports:
-      - "${MYSQL_PORT:-3307}:3306"
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-u", "${MYSQL_USER}", "-p${MYSQL_PASSWORD}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-    volumes:
-      - mysqldata:/var/lib/mysql
-    networks:
-      - sync-network
-    profiles: ["mysql"]
-
-  backend-init-mysql:
-    <<: *backend-base
-    container_name: sync-event-init-mysql
-    environment:
-      <<: *backend-env-common
-      DB_PROVIDER: mysql
-      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-mysql:3306/${MYSQL_DATABASE}
-      MODE: init
-    depends_on:
-      db-mysql:
-        condition: service_healthy
-    profiles: ["mysql"]
-
-  backend-mysql:
-    <<: *backend-base
-    container_name: sync-event-backend-mysql
-    environment:
-      <<: *backend-env-common
-      DB_PROVIDER: mysql
-      DATABASE_URL: mysql://${MYSQL_USER}:${MYSQL_PASSWORD}@db-mysql:3306/${MYSQL_DATABASE}
-      MODE: serve
-    ports:
-      - "${BACKEND_PORT:-3000}:3000"
-    depends_on:
-      backend-init-mysql:
-        condition: service_completed_successfully
-    profiles: ["mysql"]
 
   frontend:
     build:
@@ -447,6 +470,21 @@ services:
       - "${FRONTEND_PORT:-5173}:5173"
     environment:
       - VITE_API_URL=${VITE_API_URL:-http://localhost:3000/api}
+    networks:
+      - sync-network
+
+  frontend-next:
+    build:
+      context: .
+      dockerfile: apps/frontend-next/Dockerfile
+    container_name: sync-event-frontend-next
+    ports:
+      - "${FRONTEND_NEXT_PORT:-3001}:3001"
+    environment:
+      # Must stay a browser-reachable URL (localhost, not the "backend"
+      # service name) — see the Dockerfile/compose note in
+      # docs/architecture/nextjs-migration.md for why.
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3000/api}
     networks:
       - sync-network
 
@@ -490,9 +528,6 @@ services:
     networks:
       - sync-network
 
-  # One-shot: create the domain-event topics up front so consumers don't race
-  # Kafka's lazy auto-creation on first connect ("This server does not host
-  # this topic-partition", which kafkajs doesn't recover from cleanly).
   kafka-init:
     image: apache/kafka:3.9.0
     container_name: sync-event-kafka-init
@@ -548,7 +583,6 @@ networks:
     driver: bridge
 
 volumes:
-  mysqldata:
   pgdata:
   pgadmin-data:
 
@@ -587,7 +621,10 @@ onlyBuiltDependencies:
     "dev": "pnpm --parallel -r dev",
     "dev:backend": "pnpm --filter backend start:dev",
     "dev:frontend": "pnpm --filter frontend dev",
-    "build": "tsup && tsc --emitDeclarationOnly --noEmit false",
+    "dev:frontend-next": "pnpm --filter frontend-next dev",
+    "build:frontend-next": "pnpm --filter frontend-next build",
+    "build:shared": "pnpm --filter @syncevent/shared build",
+    "build": "pnpm -r build",
     "lint": "pnpm -r lint",
     "db:generate": "pnpm --filter backend exec prisma generate",
     "db:studio": "pnpm --filter backend exec prisma studio",
@@ -596,8 +633,7 @@ onlyBuiltDependencies:
     "test:seeded": "pnpm --filter backend run test:seeded",
     "smoke:booking": "pnpm --filter backend run smoke:booking",
     "diagnose": "node gather-project-info.mjs",
-    "dev:postgres": "cross-env COMPOSE_PROFILES=postgres docker compose up",
-    "dev:mysql": "cross-env COMPOSE_PROFILES=mysql docker compose up",
+    "dev:docker": "docker compose up",
     "build:eslint-rules": "pnpm --filter @syncevent/eslint-rules run build",
     "prebuild": "pnpm --filter @syncevent/eslint-rules run build",
     "test:eslint-rules": "pnpm --filter @syncevent/eslint-rules run test",
@@ -607,7 +643,6 @@ onlyBuiltDependencies:
   "devDependencies": {
     "@syncevent/eslint-rules": "workspace:*",
     "@types/pg": "^8.20.0",
-    "cross-env": "^10.1.0",
     "typescript": "^5.9.3"
   },
   "dependencies": {
@@ -619,7 +654,8 @@ onlyBuiltDependencies:
       "@prisma/engines",
       "prisma",
       "bcrypt",
-      "esbuild"
+      "esbuild",
+      "unrs-resolver"
     ]
   }
 }
@@ -630,11 +666,6 @@ onlyBuiltDependencies:
 
 ```
 # ==============================
-# Compose
-# ==============================
-COMPOSE_PROFILES=postgres
-
-# ==============================
 # Application
 # ==============================
 NODE_ENV=development
@@ -642,21 +673,12 @@ PORT=3000
 CORS_ORIGINS=http://localhost:5173
 
 # ==============================
-# PostgreSQL (--profile postgres)
+# PostgreSQL
 # ==============================
 POSTGRES_USER=<postgres_user>
 POSTGRES_PASSWORD=***REDACTED***
-POSTGRES_DB=<ostgres_db_name>
+POSTGRES_DB=<postgres_db_name>
 POSTGRES_PORT=5432
-
-# ==============================
-# MySQL (--profile mysql)
-# ==============================
-MYSQL_ROOT_PASSWORD=***REDACTED***
-MYSQL_USER=<mysql_user>
-MYSQL_PASSWORD=***REDACTED***
-MYSQL_DATABASE=<mysql_db_name>
-MYSQL_PORT=3307
 
 # ==============================
 # Authentication (JWT)
@@ -671,6 +693,7 @@ JWT_REFRESH_EXPIRES_IN=7d
 # ==============================
 BACKEND_PORT=3000
 FRONTEND_PORT=5173
+FRONTEND_NEXT_PORT=3001
 VITE_API_URL=http://localhost:3000/api
 
 # ==============================
@@ -923,9 +946,6 @@ model RefreshToken {
   @@index([revokedReason, revokedAt])
 }
 
-/// Run history for every task in ScheduledTasksModule (scheduled-tasks-worker.md
-/// §6 Фаза 2), written once per job by ScheduledTasksProcessor -- generic across
-/// tasks so task 2, 3... get this for free, no per-task table.
 model ScheduledTaskRun {
   id         String   @id @default(cuid())
   taskName   String
@@ -978,123 +998,6 @@ model EventParticipant {
   @@id([eventId, userId])
   @@index([userId])
 }
-```
-
-### apps/backend/scripts/check-db.js
-
-```
-import {
-  existsSync,
-  mkdirSync,
-  rmSync,
-  cpSync,
-  readFileSync,
-  writeFileSync,
-} from 'fs';
-import { join } from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const appRoot = join(__filename, '../../..');
-const backendDir = join(__filename, '../..');
-
-const prismaDir = join(backendDir, 'prisma');
-const migrationsPath = join(prismaDir, 'migrations');
-const lockFilePath = join(migrationsPath, 'migration_lock.toml');
-const backupRootDir = join(prismaDir, '.migrations_backup');
-
-let currentProvider = process.env.DB_PROVIDER;
-
-if (!currentProvider) {
-  const envPath = join(appRoot, '.env');
-  if (existsSync(envPath)) {
-    const envContent = readFileSync(envPath, 'utf8');
-    const providerMatch = envContent.match(/^DB_PROVIDER\s*=\s*(\w+)/m);
-    currentProvider = providerMatch
-      ? providerMatch[1].trim().toLowerCase()
-      : null;
-  }
-}
-
-// PostgreSQL is the project's target DB (docs/architecture/
-// booking-concurrency.md §0) and schema.prisma ships committed with
-// provider = "postgresql", so it's the default when nothing else says
-// otherwise. Only testing against MySQL needs an explicit DB_PROVIDER=mysql
-// (or a `DB_PROVIDER=mysql` line in .env).
-currentProvider = (currentProvider ?? 'postgresql').toLowerCase();
-
-if (
-  !currentProvider ||
-  (currentProvider !== 'mysql' && currentProvider !== 'postgresql')
-) {
-  console.error(
-    '❌ Error: DB_PROVIDER must be either "mysql" or "postgresql"!',
-  );
-  process.exit(1);
-}
-
-if (!existsSync(backupRootDir)) {
-  mkdirSync(backupRootDir, { recursive: true });
-}
-
-let lockedProvider = null;
-if (existsSync(lockFilePath)) {
-  const lockContent = readFileSync(lockFilePath, 'utf8');
-  const lockMatch = lockContent.match(/^provider\s*=\s*"(\w+)"/m);
-  lockedProvider = lockMatch ? lockMatch[1].trim().toLowerCase() : null;
-}
-
-console.log(
-  `🔍 [DB-MANAGER] Target: [${currentProvider.toUpperCase()}] | Lock: [${lockedProvider ? lockedProvider.toUpperCase() : 'NONE'}]`,
-);
-
-if (lockedProvider && lockedProvider !== currentProvider) {
-  const targetBackupDir = join(backupRootDir, lockedProvider);
-  if (existsSync(targetBackupDir))
-    rmSync(targetBackupDir, { recursive: true, force: true });
-  cpSync(migrationsPath, targetBackupDir, { recursive: true });
-  rmSync(migrationsPath, { recursive: true, force: true });
-  console.log(
-    `📦 [BACKUP] Moved [${lockedProvider.toUpperCase()}] migrations to backup.`,
-  );
-}
-
-if (!existsSync(migrationsPath)) {
-  const ourBackupDir = join(backupRootDir, currentProvider);
-  if (existsSync(ourBackupDir)) {
-    cpSync(ourBackupDir, migrationsPath, { recursive: true });
-    rmSync(ourBackupDir, { recursive: true, force: true });
-    console.log(
-      `🔄 [RESTORE] Restored [${currentProvider.toUpperCase()}] migrations from backup.`,
-    );
-  } else {
-    console.log(
-      `🌱 [INIT] No migrations for [${currentProvider.toUpperCase()}]. Prisma will create them.`,
-    );
-  }
-} else {
-  console.log(
-    `✅ [READY] Migrations match [${currentProvider.toUpperCase()}].`,
-  );
-}
-
-const schemaPath = join(prismaDir, 'schema.prisma');
-const schemaContent = readFileSync(schemaPath, 'utf8');
-const updatedSchema = schemaContent.replace(
-  /(datasource\s+db\s*\{[^}]*provider\s*=\s*")[^"]*(")/,
-  `$1${currentProvider}$2`,
-);
-if (updatedSchema !== schemaContent) {
-  writeFileSync(schemaPath, updatedSchema, 'utf8');
-  console.log(
-    `✏️  [SCHEMA] Provider set to [${currentProvider.toUpperCase()}].`,
-  );
-} else {
-  console.log(
-    `✏️  [SCHEMA] Provider already [${currentProvider.toUpperCase()}], no changes.`,
-  );
-}
-
 ```
 
 ### apps/frontend/Dockerfile

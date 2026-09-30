@@ -3,17 +3,14 @@ set -e  # падати одразу на першій же неуспішній 
 
 SCHEMA="${PRISMA_SCHEMA:-/app/apps/backend/prisma/schema.prisma}"
 
-echo ">> [entrypoint] MODE=${MODE} DB_PROVIDER=${DB_PROVIDER}"
+echo ">> [entrypoint] MODE=${MODE}"
 
 if [ -z "$MODE" ]; then
   echo "!! MODE не встановлено. Очікується 'init' або 'serve'." >&2
   exit 1
 fi
 
-# 1. Перевірка з'єднання з БД (спільна для обох режимів)
-node /app/apps/backend/scripts/check-db.js
-
-# 2. Генерація Prisma Client під поточний DB_PROVIDER
+# Генерація Prisma Client (спільна для обох режимів)
 pnpm --filter backend exec prisma generate --schema="$SCHEMA"
 
 case "$MODE" in

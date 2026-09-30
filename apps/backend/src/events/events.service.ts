@@ -15,14 +15,8 @@ import { PaginationDto } from '../common/dto/pagination.dto';
 
 @Injectable()
 export class EventsService {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * Writes one transactional-outbox row (docs/architecture/booking-concurrency.md
-   * §6.4). MUST be called with the same `tx` as the state change it describes,
-   * so the fact and its event commit or roll back together. The row id doubles
-   * as the payload's `messageId` for consumer-side dedupe.
-   */
   private writeOutbox(
     tx: Prisma.TransactionClient,
     topic: string,
@@ -35,7 +29,11 @@ export class EventsService {
         id: messageId,
         topic,
         key: eventId,
-        payload: { ...payload, messageId, occurredAt: new Date().toISOString() },
+        payload: {
+          ...payload,
+          messageId,
+          occurredAt: new Date().toISOString(),
+        },
       },
     });
   }
@@ -57,9 +55,6 @@ export class EventsService {
           ...dto,
           date: eventDate,
           authorId: userId,
-          // The author is always joined on creation, so the denormalised
-          // counter starts at 1 — otherwise the event would accept
-          // `capacity + 1` people (organizer + capacity joiners).
           seatsTaken: 1,
           participants: {
             create: { userId },
@@ -147,9 +142,6 @@ export class EventsService {
 
     return {
       ...event,
-      // Flatten EventParticipant[] back to a plain user list — keeps the
-      // response contract (IEventResponse.participants: IParticipant[])
-      // unchanged by the implicit->explicit join-model migration.
       participants: event.participants.map((p) => p.user),
       isJoined: currentUserId
         ? event.participants.some((p) => p.userId === currentUserId)
@@ -159,8 +151,6 @@ export class EventsService {
 
   async joinEvent(eventId: string, userId: string) {
     return this.prisma.$transaction(async (tx) => {
-      // 1. Лочимо рядок "Event" — серіалізує конкурентні join/leave на цій
-      //    же події (той самий лок, що й у leaveEvent).
       await tx.$executeRaw`SELECT id FROM "Event" WHERE id = ${eventId} FOR UPDATE`;
 
       const event = await tx.event.findUnique({
@@ -169,11 +159,6 @@ export class EventsService {
       });
       if (!event) throw new NotFoundException('Event not found');
 
-      // 2. Членство застовплюємо через composite PK (eventId,userId) —
-      //    реальний DB-constraint, а не read-then-check підзапит. Дублікат
-      //    конфліктує атомарно на рівні БД, тож це закриває residual-гонку
-      //    навіть для прямих викликів joinEvent в обхід черги/Redis-claim'у
-      //    (docs/architecture/booking-concurrency.md §13).
       const { count: joined } = await tx.eventParticipant.createMany({
         data: [{ eventId, userId }],
         skipDuplicates: true,
@@ -182,10 +167,6 @@ export class EventsService {
         throw new ConflictException('You are already a participant');
       }
 
-      // 3. Членство саме собою місця не бронює — лічильник і далі
-      //    захищений умовним UPDATE. Кидок звідси відкотить усю
-      //    транзакцію, тобто й insert з кроку 2 — тож "зайвого" учасника
-      //    без місця не залишиться.
       const { count: seated } = await tx.event.updateMany({
         where: {
           id: eventId,
@@ -200,7 +181,6 @@ export class EventsService {
         throw new ConflictException('Event is full');
       }
 
-      // Факт «користувач приєднався» — у тій самій транзакції (outbox).
       await this.writeOutbox(tx, EventTopics.USER_JOINED, eventId, {
         eventId,
         userId,
@@ -216,8 +196,6 @@ export class EventsService {
 
   async leaveEvent(eventId: string, userId: string) {
     return this.prisma.$transaction(async (tx) => {
-      // 1. Лочимо рядок "Event" — серіалізує конкурентні join/leave на цій
-      //    же події так само, як умовний UPDATE в joinEvent.
       await tx.$executeRaw`SELECT id FROM "Event" WHERE id = ${eventId} FOR UPDATE`;
 
       const event = await tx.event.findUnique({
@@ -226,13 +204,11 @@ export class EventsService {
       });
       if (!event) throw new NotFoundException('Event not found');
       if (event.authorId === userId) {
-        throw new ForbiddenException('The organizer cannot leave their own event');
+        throw new ForbiddenException(
+          'The organizer cannot leave their own event',
+        );
       }
 
-      // 2. Членство знімаємо через explicit-модель EventParticipant — сама
-      //    умова (eventId,userId) в WHERE і є перевіркою "чи був учасником",
-      //    без окремого read перед мутацією (composite PK гарантує, що це
-      //    рівно 0 або 1 рядок).
       const { count } = await tx.eventParticipant.deleteMany({
         where: { eventId, userId },
       });
@@ -240,8 +216,6 @@ export class EventsService {
         throw new ConflictException('You are not a participant of this event');
       }
 
-      // 3. Місце звільнилося — знімаємо його, не пускаючи лічильник у мінус
-      //    (симетрично до joinEvent).
       await tx.$executeRaw`
         UPDATE "Event" SET "seatsTaken" = GREATEST("seatsTaken" - 1, 0) WHERE id = ${eventId}
       `;
