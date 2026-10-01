@@ -1,7 +1,10 @@
 # Шахи: мультиплеєр, турніри і Python-сервіси
 
 > Статус: **проєкт рішення** (draft). Соло-проєкт, автор — Borys.
-> Останнє оновлення: 2026-09-23 (аналіз, цільова архітектура, деталі WebSocket, правила нічиїх затверджено, відкрите лише питання різних N/K для контролів часу; код ще не почато).
+> Останнє оновлення: 2026-09-30 (рушій скопійовано в `packages/chess-engine` — далі розвивається там;
+> каркас Python-сервісу `apps/chess-service` (назва замість `chess-analysis` — сервіс ширший за аналіз);
+> роль Python підтверджено: поруч, не посередині). 2026-09-23: аналіз, цільова архітектура, деталі
+> WebSocket, правила нічиїх затверджено, відкрите лише питання різних N/K для контролів часу.
 > Пов'язаний код: сусідній репозиторій `D:\Projects\ChessB` (`src/engine/`, `src/redux/game/`,
 > `docs/next-steps.md`, `docs/clock-and-game-record.md`), у SyncEvent — `apps/backend/src/events/`,
 > `apps/backend/src/kafka/`, `apps/backend/src/outbox/`, `apps/backend/src/scheduled-tasks/`,
@@ -86,9 +89,9 @@ apps/
   backend/            # + модуль tournaments
   game-service/       # новий NestJS: WS gateway + ігрова логіка
   chess-web/          # перенесений ChessB (пізніше — фіча у frontend-next)
-  chess-analysis/     # Python (не в pnpm workspace; свій Dockerfile / pyproject)
+  chess-service/      # Python (не в pnpm workspace; свій Dockerfile / pyproject) — ✅ каркас 2026-09-30
 packages/
-  chess-engine/       # рушій з ChessB (+ applyMove, FEN in/out, PGN)
+  chess-engine/       # рушій з ChessB (+ applyMove, FEN in/out, PGN) — ✅ скопійовано 2026-09-30
   shared/             # + шахові топіки Kafka, DTO WS-подій (zod-схеми)
 ```
 
@@ -462,7 +465,7 @@ model Move {
 
 ### 7.2. Роль Python
 
-Python-сервіс (`apps/chess-analysis`, FastAPI + `aiokafka`, `python-chess`, Stockfish у Docker-образі):
+Python-сервіс (`apps/chess-service`, FastAPI + `aiokafka`, `python-chess`, Stockfish у Docker-образі):
 
 - **Аналіз партій** — оцінка кожної позиції, blunders/mistakes, accuracy → зберігає у своїй схемі/таблиці, фронт читає через REST.
 - **Рейтинг Glicko-2** — на `game.finished` (лише рейтингові партії) → `chess.rating.updated`.
@@ -501,6 +504,8 @@ Python-сервіс (`apps/chess-analysis`, FastAPI + `aiokafka`, `python-chess`
 2. Винести `applyMove(state, move)` з `gameSlice.js` у рушій; редюсер стає тонкою обгорткою. Тести мають лишитись зеленими без зміни очікувань.
 3. Додати `boardToFen` / `fenToState` (сервер зберігає `fen`).
 4. Перенести ChessB у `apps/chess-web`, рушій — у `packages/chess-engine` (за бажанням — у TS).
+   **Рушій — ✅ 2026-09-30** (скопійовано як є, JS, 107 тестів зелені; пункти 1–3 тепер робляться
+   в пакеті, а не в ChessB). `apps/chess-web` — ще ні.
 
 **Готово, коли:** `apps/chess-web` працює як зараз (hot-seat), рушій імпортується з `@syncevent/chess-engine`, perft(1..4) збігається з еталоном.
 
@@ -516,7 +521,7 @@ Python-сервіс (`apps/chess-analysis`, FastAPI + `aiokafka`, `python-chess`
 Модуль `tournaments`, `Tournament/Round/Pairing`, круговий формат, BullMQ-розклад, consumer `chess.game.finished`, таблиця з тай-брейками.
 
 ### Фаза 4 — Python
-`apps/chess-analysis`: рейтинг Glicko-2 → аналіз → швейцарське жеребкування → античит.
+`apps/chess-service` (каркас FastAPI — ✅ 2026-09-30): рейтинг Glicko-2 → аналіз → швейцарське жеребкування → античит.
 
 ### Фаза 5 — масштабування
 Socket.IO Redis adapter для кількох інстансів, кеш живих партій у Redis, sticky sessions / WS-балансування, арена-формат.

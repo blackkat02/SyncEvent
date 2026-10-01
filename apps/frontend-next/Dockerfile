@@ -14,6 +14,7 @@ COPY apps/analytics-service/package.json ./apps/analytics-service/
 COPY apps/notifications-service/package.json ./apps/notifications-service/
 COPY packages/shared/package.json ./packages/shared/
 COPY packages/eslint-rules/package.json ./packages/eslint-rules/
+COPY packages/chess-engine/package.json ./packages/chess-engine/
 
 RUN pnpm install --frozen-lockfile
 

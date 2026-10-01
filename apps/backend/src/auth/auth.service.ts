@@ -6,7 +6,7 @@ import {
 import { PrismaService } from '../../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { Prisma, RevokedReason } from '@prisma/client';
 import { RegisterDto } from './dto/register.dto';
 import { AuthTokensResult } from '@syncevent/shared';
@@ -18,6 +18,14 @@ const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const ACCESS_TOKEN_TTL_SECONDS = 15 * 60;
 
 export const GRACE_PERIOD_MS = 10 * 1000;
+
+// Refresh tokens are long, high-entropy JWTs: a fast deterministic hash is
+// enough, and unlike bcrypt it covers the whole input (bcrypt silently drops
+// everything past 72 bytes, where all of one user's JWTs are identical).
+// Deterministic also means rows can be looked up by hash instead of looping.
+export function hashRefreshToken(refreshToken: string): string {
+  return createHash('sha256').update(refreshToken).digest('hex');
+}
 
 @Injectable()
 export class AuthService {
@@ -97,6 +105,7 @@ export class AuthService {
   }
 
   async refreshTokens(userId: string, refreshToken: string, familyId: string) {
+    const tokenHash = hashRefreshToken(refreshToken);
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new UnauthorizedException('Access Denied');
 
@@ -105,11 +114,7 @@ export class AuthService {
     });
 
     if (activeSession && activeSession.userId === userId) {
-      const isTokenMatch = await bcrypt.compare(
-        refreshToken,
-        activeSession.tokenHash,
-      );
-      if (isTokenMatch) {
+      if (activeSession.tokenHash === tokenHash) {
         const tokens = await this.getTokens(user.id, user.email, familyId);
         const newRow = await this.createRefreshTokenSession(
           user.id,
@@ -138,13 +143,11 @@ export class AuthService {
       }
     }
 
-    const revokedRows = await this.prisma.refreshToken.findMany({
-      where: { userId, familyId, revoked: true },
+    const row = await this.prisma.refreshToken.findFirst({
+      where: { userId, familyId, revoked: true, tokenHash },
     });
 
-    for (const row of revokedRows) {
-      if (!(await bcrypt.compare(refreshToken, row.tokenHash))) continue;
-
+    if (row) {
       if (
         row.supersededById &&
         row.supersededAt &&
@@ -158,7 +161,7 @@ export class AuthService {
           await this.prisma.refreshToken.update({
             where: { id: currentRow.id },
             data: {
-              tokenHash: await bcrypt.hash(tokens.refreshToken, 10),
+              tokenHash: hashRefreshToken(tokens.refreshToken),
               accessJti: tokens.accessJti,
             },
           });
@@ -229,7 +232,9 @@ export class AuthService {
         { expiresIn: '15m', secret: env.JWT_SECRET },
       ),
       this.jwtService.signAsync(
-        { sub: userId, email, familyId },
+        // jti makes every refresh token unique: without it two tokens
+        // issued within the same second (same iat) are byte-identical.
+        { sub: userId, email, familyId, jti: randomUUID() },
         { expiresIn: '7d', secret: env.JWT_REFRESH_SECRET },
       ),
     ]);
@@ -242,7 +247,7 @@ export class AuthService {
     refreshToken: string,
     accessJti: string,
   ) {
-    const tokenHash = await bcrypt.hash(refreshToken, 10);
+    const tokenHash = hashRefreshToken(refreshToken);
     return this.prisma.refreshToken.create({
       data: {
         userId,

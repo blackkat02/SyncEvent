@@ -2,7 +2,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { AuthService, GRACE_PERIOD_MS, ACCESS_TOKEN_TTL_SECONDS } from './auth.service';
+import {
+  AuthService,
+  GRACE_PERIOD_MS,
+  ACCESS_TOKEN_TTL_SECONDS,
+  hashRefreshToken,
+} from './auth.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { AccessTokenBlocklistService } from './access-token-blocklist.service';
@@ -137,11 +142,9 @@ describe('AuthService', () => {
         {
           provide: JwtService,
           useValue: {
-            // Unique per call, and unique *early* in the string: bcrypt only
-            // hashes the first 72 bytes of its input, and two refresh tokens
-            // for the same family share an identical JSON prefix (same
-            // familyId/sub/email) — a trailing random suffix would land past
-            // that limit and make bcrypt.compare wrongly treat them as equal.
+            // Unique per call and readable (see familyIdOf). Not a real JWT:
+            // the long-shared-prefix case is covered by the real-JWT
+            // regression block at the bottom (audit C1).
             signAsync: jest.fn(
               async (payload: Record<string, unknown>) =>
                 `${Math.random()}:signed:${JSON.stringify(payload)}`,
@@ -162,8 +165,7 @@ describe('AuthService', () => {
   // Extracts familyId from a raw fake refresh token (see the signAsync mock
   // above) so tests can identify "whose session is this" without relying on
   // refreshTokenModel.rows insertion order -- under Promise.all, two
-  // concurrent logins' internal bcrypt.hash calls can settle in either
-  // order, so the *order rows land in the array* does not necessarily match
+  // concurrent logins can settle in either order, so the *order rows land in the array* does not necessarily match
   // the order the login() promises were passed in.
   function familyIdOf(rawToken: string): string {
     const match = rawToken.match(/signed:({.*})$/);
@@ -413,8 +415,7 @@ describe('AuthService', () => {
       // race.
       const liveRow = activeRows[0];
       const winner = fulfilled.find(
-        (f) =>
-          bcrypt.compareSync(f.value.refreshToken, liveRow.tokenHash),
+        (f) => hashRefreshToken(f.value.refreshToken) === liveRow.tokenHash,
       );
       expect(winner).toBeDefined();
       await expect(
@@ -460,6 +461,80 @@ describe('AuthService', () => {
     it('is a no-op (no throw, nothing to blocklist) when the user has no live sessions', async () => {
       await expect(service.logoutAllDevices(user.id)).resolves.toBeUndefined();
       expect(accessTokenBlocklist.revoke).not.toHaveBeenCalled();
+    });
+  });
+
+  // Regression for audit C1 (docs/review/backend-audit-2026-09-29.md):
+  // refresh tokens used to be hashed with bcrypt, which silently ignores
+  // everything past the first 72 bytes. Real JWTs of one user share that
+  // whole prefix (header + start of `sub`), so any of the user's refresh
+  // tokens matched any of the user's hashes. The fake signAsync above hides
+  // this on purpose, so these tests sign real JWTs.
+  describe('real JWTs: tokens sharing a long prefix are still distinct (audit C1)', () => {
+    const loginDto: RegisterDto = { email: user.email, password: PLAIN_PASSWORD };
+    let realService: AuthService;
+
+    beforeEach(async () => {
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          AuthService,
+          {
+            provide: PrismaService,
+            useValue: {
+              user: { findUnique: jest.fn(async () => user) },
+              refreshToken: refreshTokenModel,
+            },
+          },
+          { provide: JwtService, useValue: new JwtService() },
+          { provide: AccessTokenBlocklistService, useValue: accessTokenBlocklist },
+        ],
+      }).compile();
+      realService = module.get<AuthService>(AuthService);
+    });
+
+    it('precondition: two refresh tokens of one user share more than 72 bytes', async () => {
+      const { refreshToken: rawA } = await realService.login(loginDto);
+      const { refreshToken: rawB } = await realService.login(loginDto);
+
+      let common = 0;
+      while (rawA[common] === rawB[common]) common++;
+      expect(common).toBeGreaterThan(72);
+    });
+
+    it("rejects device A's token presented against device B's session", async () => {
+      const { refreshToken: rawA } = await realService.login(loginDto);
+      await realService.login(loginDto); // device B
+      const [rowA, rowB] = refreshTokenModel.rows;
+      expect(rowA.familyId).not.toBe(rowB.familyId);
+
+      await expect(
+        realService.refreshTokens(user.id, rawA, rowB.familyId),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(rowB.revoked).toBe(false);
+    });
+
+    it('treats a rotated-away token as reuse, not as the current one', async () => {
+      const { refreshToken: rawV1 } = await realService.login(loginDto);
+      const { familyId } = refreshTokenModel.rows[0];
+
+      const { refreshToken: rawV2 } = await realService.refreshTokens(
+        user.id,
+        rawV1,
+        familyId,
+      );
+      expect(rawV2).not.toBe(rawV1);
+
+      const supersededRow = refreshTokenModel.rows.find(
+        (r) => r.familyId === familyId && r.revoked && r.supersededAt,
+      )!;
+      supersededRow.supersededAt = new Date(Date.now() - GRACE_PERIOD_MS - 1000);
+
+      await expect(
+        realService.refreshTokens(user.id, rawV1, familyId),
+      ).rejects.toThrow('Refresh token reuse detected');
+      expect(
+        refreshTokenModel.rows.filter((r) => r.familyId === familyId && !r.revoked),
+      ).toHaveLength(0);
     });
   });
 });
