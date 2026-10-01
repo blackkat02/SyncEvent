@@ -3,6 +3,10 @@ node_modules/
 **/node_modules/
 .pnpm-store
 .pnpm-debug.log*
+# pnpm-only repo: lock files of other package managers are accidents
+package-lock.json
+yarn.lock
+bun.lock
 
 # --- Environment & Secrets ---
 .env
@@ -23,6 +27,16 @@ logs
 *.log
 *-debug.log*
 *-error.log*
+
+# --- Python (apps/chess-service) ---
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # --- IDE & Editors ---
 .vscode/*
@@ -52,3 +66,14 @@ logs
 # --- Reports ---
 /report/
 .log/build-log.txt
+
+# --- Terraform state (may contain secrets) ---
+*.tfstate
+*.tfstate.*
+.terraform/
+
+# --- Generated diagnostics ---
+project-diagnostic.md
+
+# --- AI agent workspaces ---
+.kilo/

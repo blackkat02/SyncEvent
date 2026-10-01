@@ -14,6 +14,8 @@
 
 ### C1. bcrypt порівнює лише перші 72 байти JWT — ротація refresh-токенів і пошук повторного використання не працюють
 
+> ✅ **Виправлено 2026-09-30:** sha256 + `jti` у refresh-токені; регресійні тести в `auth.service.spec.ts` (див. `refresh-token-rotation.md` §6).
+
 `src/auth/auth.service.ts:108, 146, 245`
 
 - bcrypt обрізає вхід до 72 байт. У JWT це заголовок (`eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.`, 37 символів) і початок payload, тобто лише частина `sub`.

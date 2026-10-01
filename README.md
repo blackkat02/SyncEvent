@@ -1,6 +1,8 @@
 # SyncEvent
 
-Full-stack platform for creating and managing events, built as a pnpm monorepo with a NestJS backend, a React frontend, event-driven NestJS microservices (Kafka), Redis, and a shared types/validation package.
+Full-stack platform for creating and managing events. The first niche is **chess**: tournaments, clubs and teams.
+
+Built as a pnpm monorepo: a NestJS backend, a Next.js frontend (migrating from a Vite SPA), event-driven NestJS microservices over Kafka, Redis/BullMQ, a shared zod contracts package, a shared chess rules engine, and a Python sidecar for chess computations.
 
 ## Architecture
 
@@ -8,24 +10,24 @@ Full-stack platform for creating and managing events, built as a pnpm monorepo w
                       ┌──────────────────────────────┐
                       │           Browser            │
                       └───────────────┬──────────────┘
-                                      │ HTTP :5173
+                                      │ HTTP :3001 (:5173 legacy)
                       ┌───────────────▼──────────────┐
-                      │      frontend (React 19)     │
-                      │   Vite · Redux Toolkit       │
-                      │   RTK Query · React Router   │
+                      │  frontend-next (Next.js 16)  │
+                      │  Redux Toolkit · RTK Query   │
+                      │  (frontend: legacy Vite SPA) │
                       └───────────────┬──────────────┘
                                       │ REST /api  :3000
                       ┌───────────────▼──────────────┐
                       │      backend (NestJS 11)     │
-                      │   JWT auth · class-validator │
-                      │   Prisma ORM                 │
+                      │  JWT + refresh rotation · zod│
+                      │  Prisma ORM · BullMQ         │
                       └────────┬────────────┬────────┘
                                │            │
                 ┌──────────────┘            └──────────────┐
                 │                                          │
      ┌──────────▼───────────┐                  ┌───────────▼──────────┐
      │    PostgreSQL 16     │                  │  Redis 7   Kafka 3.9 │
-     │                      │                  │  locks     event bus │
+     │                      │                  │  BullMQ    event bus │
      │                      │                  └───────────┬──────────┘
      └──────────────────────┘                              │ domain events
                                             ┌──────────────┴──────────────┐
@@ -39,13 +41,17 @@ Full-stack platform for creating and managing events, built as a pnpm monorepo w
 
 ```
 apps/
-  backend/                NestJS REST API — auth, events, Prisma
-  frontend/               React SPA — Vite, Redux Toolkit, RTK Query
+  backend/                NestJS REST API — auth, events, booking, outbox, scheduled tasks, Prisma
+  frontend-next/          Next.js 16 frontend (target) — Redux Toolkit, RTK Query, port 3001
+  frontend/               Legacy Vite + React SPA, port 5173 — being migrated to frontend-next
   analytics-service/      NestJS Kafka microservice — consumes domain events, records metrics
   notifications-service/  NestJS Kafka microservice — consumes domain events, notifies organizers
+  chess-service/          Python (FastAPI) sidecar — rating, analysis, pairings (not in the pnpm workspace)
 packages/
-  shared/                 Yup schemas, TypeScript types & Kafka event contracts
+  shared/                 zod schemas, TypeScript types & Kafka event contracts
                           (topics + payloads) shared across every app
+  chess-engine/           Chess rules (JS, Vitest) — one implementation for client and server
+  eslint-rules/           Custom ESLint rules (Vitest)
 ```
 
 Every app depends on `@syncevent/shared` (workspace package) for a single source of truth on DTOs, validation schemas, and Kafka topic/payload contracts, so a change to an API or event contract only needs to happen in one place.
@@ -74,24 +80,80 @@ This keeps both backend services free of duplicated shell logic — only their `
 
 | Layer        | Stack |
 |--------------|-------|
-| Frontend     | React 19, Vite, Redux Toolkit, RTK Query, React Router, React Hook Form, Tailwind |
-| Backend      | NestJS 11, Prisma 6, Passport JWT, class-validator, Yup |
+| Frontend     | Next.js 16 (App Router), React 19, Redux Toolkit, RTK Query, React Hook Form, zod, Tailwind 4 |
+| Legacy SPA   | React 19, Vite 7, React Router 7 — being migrated to Next.js |
+| Backend      | NestJS 11, Prisma 6, Passport JWT, zod 4 (`nestjs-zod`), bcrypt (passwords), BullMQ |
 | Microservices| NestJS 11 microservices over Kafka (`analytics-service`, `notifications-service`) |
 | Messaging    | Apache Kafka 3.9 (`kafkajs` / `@nestjs/microservices`) |
-| Cache / locks| Redis 7 (`ioredis`, `cache-manager`) |
+| Queues / cache| Redis 7 (`ioredis`, BullMQ, `cache-manager`) |
 | Database     | PostgreSQL 16 |
 | Admin UI     | pgAdmin 4 |
-| Shared       | TypeScript, Yup — published as an internal workspace package |
-| Testing      | Jest + ts-jest (backend unit tests) |
+| Shared       | TypeScript, zod 4 — internal workspace package built with tsup |
+| Chess        | `@syncevent/chess-engine` (JS rules engine), `chess-service` (Python, FastAPI) |
+| Testing      | Jest 30 + ts-jest (backend), Vitest (chess-engine, eslint-rules), pytest (chess-service) |
 | Infra        | Docker, Docker Compose, pnpm workspaces |
+
+## Authentication
+
+- **Access token:** a JWT, lives 15 minutes, returned in the response body. The client sends it as `Authorization: Bearer …`. Each access token carries a `jti`, so a single token can be revoked through a Redis blocklist.
+- **Refresh token:** a JWT, lives 7 days, stored only in an `httpOnly` `SameSite=Lax` cookie. The database keeps only its **SHA-256 hash**, never the raw token.
+- **Multi-session:** every login creates its own session *family* (`RefreshToken.familyId`). Logging in on a second device doesn't log out the first.
+- **Rotation:** each `POST /auth/refresh` revokes the current row and issues a new token in the same family. The rotation claim is a conditional `UPDATE … WHERE revoked = false`, so parallel refreshes can't fork a family.
+- **Reuse detection:** if an already-rotated token comes back, the whole family is revoked (`REUSE_DETECTED`). A 10-second grace period covers the harmless case of two browser tabs refreshing at once.
+- **Logout:** `POST /auth/logout` revokes the current session. `POST /auth/logout-all` revokes every session and adds their access-token `jti`s to the Redis blocklist.
+- **Cleanup:** expired and revoked rows are deleted by a daily BullMQ job.
+
+| Endpoint | Purpose |
+|---|---|
+| `POST /api/auth/register`, `POST /api/auth/login` | Returns `{ user, accessToken }` and sets the refresh cookie |
+| `POST /api/auth/refresh` | Rotates the refresh cookie, returns a new `accessToken` |
+| `GET /api/auth/profile` | Current user (Bearer) |
+| `POST /api/auth/logout`, `POST /api/auth/logout-all` | Revoke one session / all sessions |
+
+Design and phase log: [`docs/architecture/refresh-token-rotation.md`](docs/architecture/refresh-token-rotation.md). The frontend side (RTK Query, single-flight refresh on 401) is covered in [`docs/architecture/frontend-auth-rtk-query.md`](docs/architecture/frontend-auth-rtk-query.md).
+
+**Known gaps** (from [`docs/review/backend-audit-2026-09-29.md`](docs/review/backend-audit-2026-09-29.md)):
+- no rate limiting on `/auth/*` yet (`@nestjs/throttler` is installed but not wired up);
+- refresh tokens aren't separated from access tokens by a `typ` claim.
+
+## Chess
+
+Chess is the platform's first niche. The current priority is the **chess foundation** ([`docs/architecture/chess-foundation.md`](docs/architecture/chess-foundation.md)). It is planned as 8 steps, each one stopped for review: privacy → a single game → moves through the engine → event type → tournament & players → rounds & pairings (over-the-board) → online tournament → approval-based registration. The game comes first; tournaments are built on top of a working game.
+
+| Part | Where | State |
+|---|---|---|
+| Rules engine | `packages/chess-engine` | ✅ Legal moves, castling, en passant, promotion, mate/stalemate, SAN. 107 tests; cross-checked against chess.js on ~105k positions with 0 mismatches ([`chess-engine-vs-chessjs.md`](docs/architecture/chess-engine-vs-chessjs.md)) |
+| Games & tournaments (backend) | `apps/backend` (`games`, `tournaments` modules) | 📝 Designed, not started |
+| Hot-seat game UI | `apps/frontend-next` (`/chess`) | 📝 Spec ready ([`chess-ui-nextjs.md`](docs/architecture/chess-ui-nextjs.md)) |
+| Rating (Glicko-2), analysis, Swiss pairings | `apps/chess-service` (Python) | 🧱 Skeleton with `GET /health`; see [its README](apps/chess-service/README.md) |
+
+Design rules:
+- **The engine sits behind a `ChessRules` port.** The backend is authoritative for moves; the client reuses the same engine for optimistic moves.
+- **Tournaments know only game results, not chess mechanics.** The only link between the two is `Pairing.gameId`.
+- **Python services work next to the backend, not in the middle.** They never write to the backend's tables and publish their results as Kafka events.
+
+Multiplayer, clocks and the long-term tournament plan are in [`chess-multiplayer.md`](docs/architecture/chess-multiplayer.md). Organizations, privacy tiers and payments are in [`organizations-and-monetization.md`](docs/architecture/organizations-and-monetization.md).
 
 ## Engineering process: design docs & decision log
 
 Non-trivial or cross-cutting changes go through a written design doc *before* the code — problem statement, options considered (and why the others were rejected), the chosen architecture, and a phased rollout plan with checkboxes. As the work actually ships, the doc gets a dated, append-only decision log: what landed, what broke, how it was fixed, what's still open — so the document stays the source of truth instead of drifting from the code.
 
-The concrete example in this repo: [`docs/architecture/booking-concurrency.md`](docs/architecture/booking-concurrency.md) — the redesign of the event-booking race condition (Postgres conditional update + Redis queue + Kafka outbox). It captures the race-condition theory, why the original `Serializable` + retry approach was fragile, the target architecture, a 4-phase plan, and a running log of what was actually verified live (including bugs found only once real infra was up). [`docs/SESSION-HANDOFF.md`](docs/SESSION-HANDOFF.md) complements it as a resumable context snapshot — status, open problems, next steps — for picking the work back up in a later session.
+The concrete example in this repo: [`docs/architecture/booking-concurrency.md`](docs/architecture/booking-concurrency.md) — the redesign of the event-booking race condition (Postgres conditional update + Redis queue + Kafka outbox). It captures the race-condition theory, why the original `Serializable` + retry approach was fragile, the target architecture, a 4-phase plan, and a running log of what was actually verified live (including bugs found only once real infra was up). Every design doc starts with a status header, so it doubles as a resumable snapshot of where the work stopped.
+
+All design docs live in [`docs/architecture/`](docs/architecture/); audits and reviews live in [`docs/review/`](docs/review/).
 
 This mirrors the "design doc" / RFC practice used at Google, Amazon, GitLab and most engineering orgs of any size for anything non-trivial, and the lighter-weight ADR (Architecture Decision Record) pattern for single, atomic decisions — writing the decision down is cheaper than reverting code built on the wrong one.
+
+### Working with AI agents
+
+The project is developed together with AI coding agents (Claude Code and others), under explicit rules:
+
+- **One instruction file.** [`AGENTS.md`](AGENTS.md) holds the monorepo map, commands, architectural invariants and working rules; `CLAUDE.md` only imports it. The docs are written in Ukrainian.
+- **Seven architectural invariants.** Examples: limited resources (seats, quotas) are guarded only by a Postgres transaction; Kafka carries facts that already happened, published through the outbox; handlers are idempotent; money is stored as `Int` in minor units. An agent may not break an invariant without an explicit discussion.
+- **Design doc first.** An agent writes or updates a doc using the template and rules in [`docs/architecture/AI-DESIGN-DOC-GUIDE.md`](docs/architecture/AI-DESIGN-DOC-GUIDE.md) (status header, TL;DR, options, phased plan, open questions). Implementation starts only on an explicit request.
+- **One step, then stop for review.** A step is one schema change plus its migration, or one rewritten method plus a type-check, or one test suite plus a run. Each step ends with a report: what changed, how it was verified, which bugs were found. After a step, the agent updates the doc's status and log.
+- **Mentor mode.** Docs marked "code is written by Borys" (e.g. the frontend auth and chess UI specs) get analysis, a spec and code review from the agent, not a finished implementation.
+- **Audits as input.** Findings like [`docs/review/backend-audit-2026-09-29.md`](docs/review/backend-audit-2026-09-29.md) become fixes with regression tests. Example: audit finding C1, where bcrypt compared only the first 72 bytes of a refresh JWT, was reproduced with a failing test on real JWTs before it was fixed.
 
 ## Prerequisites
 
@@ -131,8 +193,9 @@ pnpm run dev
 Or start them separately, in two terminals:
 
 ```bash
-pnpm run dev:backend    # NestJS on :3000
-pnpm run dev:frontend   # Vite on :5173
+pnpm run dev:backend        # NestJS on :3000
+pnpm run dev:frontend-next  # Next.js on :3001
+pnpm run dev:frontend       # legacy Vite SPA on :5173
 ```
 
 ## Running with Docker
@@ -170,7 +233,8 @@ docker compose down -v
 
 Once containers are up:
 
-- Frontend: http://localhost:5173
+- Frontend (Next.js): http://localhost:3001
+- Legacy frontend (Vite): http://localhost:5173
 - Backend API: http://localhost:3000/api
 - pgAdmin: http://localhost:5050
 
@@ -203,6 +267,7 @@ JWT_REFRESH_EXPIRES_IN=7d
 # Backend / Frontend ports
 BACKEND_PORT=3000
 FRONTEND_PORT=5173
+FRONTEND_NEXT_PORT=3001
 VITE_API_URL=http://localhost:3000/api
 
 # Tools (pgAdmin) — avoid reserved TLDs like .local/.test (they fail pgAdmin's email validation)
@@ -214,11 +279,12 @@ PGADMIN_LISTEN_PORT=5050
 REDIS_HOST=redis
 REDIS_PORT=6379
 
-# Kafka
-KAFKA_BROKER=kafka:9092
+# Kafka — Compose services use kafka:9092 (set in docker-compose.yml)
+KAFKA_BROKER=localhost:29092
+KAFKA_HOST_PORT=29092
 ```
 
-`DATABASE_URL` is set directly in `docker-compose.yml` per service (built from the `POSTGRES_*` values) and doesn't need to be set in `.env`. `REDIS_HOST` / `KAFKA_BROKER` default to `redis` / `kafka:9092` for containers; use `localhost` / `localhost:9092` when running a Node process on the host against the Compose stack.
+`DATABASE_URL` is set directly in `docker-compose.yml` per service (built from the `POSTGRES_*` values) and doesn't need to be set in `.env`. Containers reach Redis and Kafka at `redis` / `kafka:9092`. A Node process on the host reaches them at `localhost` / `localhost:29092`.
 
 ### Troubleshooting
 
@@ -229,7 +295,14 @@ KAFKA_BROKER=kafka:9092
 
 ## Testing
 
-The backend has a Jest + ts-jest unit-test suite. Tests run against in-memory mocks (mocked `PrismaService`) — **no database, Redis or Kafka is required**.
+The backend has a Jest + ts-jest unit-test suite. Tests run against in-memory mocks (mocked `PrismaService`) — **no database, Redis or Kafka is required**. The chess engine and the ESLint rules use Vitest; `chess-service` uses pytest (see [its README](apps/chess-service/README.md)).
+
+```bash
+pnpm --filter @syncevent/chess-engine test
+pnpm test:eslint-rules
+```
+
+Backend:
 
 ```bash
 pnpm --filter backend test          # run all unit tests (*.spec.ts under src/)
@@ -254,5 +327,5 @@ DATABASE_URL=... REDIS_HOST=localhost pnpm --filter backend smoke:booking
 Setup lives in `apps/backend`:
 
 - Jest config: the `"jest"` block in `package.json` — ts-jest transform via `tsconfig.spec.json`, `test/setup-env.ts` injects dummy env vars so modules that read `env.ts` at import time don't throw.
-- Covered so far: `EventsService` (`src/events/events.service.spec.ts`) — create/date validation (author counts as the first seat), pagination, `findOne`, join/leave with the guarded conditional-increment capacity check (full → 409, already joined → 409) and same-transaction outbox writes, calendar, ownership checks on update/delete. `BookingQueueService` / `BookingStatusService` / `BookingProcessor`, `OutboxRelayService`, `KafkaProducerService`, and `PrismaExceptionFilter` have their own specs. `AuthService` / `AuthController` have smoke specs.
+- Covered so far: `EventsService` (`src/events/events.service.spec.ts`) — create/date validation (author counts as the first seat), pagination, `findOne`, join/leave with the guarded conditional-increment capacity check (full → 409, already joined → 409) and same-transaction outbox writes, calendar, ownership checks on update/delete. `BookingQueueService` / `BookingStatusService` / `BookingProcessor`, `OutboxRelayService`, `KafkaProducerService`, and `PrismaExceptionFilter` have their own specs. `AuthService` covers multi-session, rotation, reuse detection, the grace period, concurrent refreshes, logout-all, and a real-JWT regression suite for the bcrypt 72-byte bug (audit C1). `AuthController` has a smoke spec.
 - The join flow is queued (`POST /events/:id/join` → `202 { requestId }`, poll `GET /events/join-requests/:requestId`). Send an `Idempotency-Key` header to make a retry or double-submit collapse onto the same request.

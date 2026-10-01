@@ -17,7 +17,6 @@
     "db:seed": "pnpm --filter backend run db:seed",
     "test:seeded": "pnpm --filter backend run test:seeded",
     "smoke:booking": "pnpm --filter backend run smoke:booking",
-    "diagnose": "node gather-project-info.mjs",
     "dev:docker": "docker compose up",
     "build:eslint-rules": "pnpm --filter @syncevent/eslint-rules run build",
     "prebuild": "pnpm --filter @syncevent/eslint-rules run build",
